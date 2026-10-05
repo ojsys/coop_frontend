@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------ *
+ * CooperativeOS design tokens — extracted from the CooperativeOS.html
+ * prototype. Green / gold / paper, with Bricolage Grotesque (display),
+ * Hanken Grotesk (UI/body) and IBM Plex Mono (figures & references).
+ * ------------------------------------------------------------------ */
+@theme {
+  /* Brand green */
+  --color-green: #0b4f3a;
+  --color-green-hover: #0e6048;
+  --color-green-bright: #1f8a5b;
+  --color-green-50: #e7f0ea;
+  --color-green-100: #cfe3d9;
+  --color-green-200: #9cc4b3;
+
+  /* Gold accent */
+  --color-gold: #d99e2b;
+  --color-gold-deep: #c98a1e;
+  --color-gold-50: #f6ecd2;
+
+  /* Paper / canvas surfaces */
+  --color-paper: #f4f1ea;
+  --color-card: #fffdf9;
+  --color-sand: #f7f3ea;
+  --color-sand-deep: #f1ece1;
+
+  /* Hairline borders */
+  --color-line: #ece7db;
+  --color-line-soft: #e7e2d6;
+  --color-line-deep: #e0dacd;
+
+  /* Ink / text */
+  --color-ink: #1b1a17;
+  --color-ink-soft: #46423a;
+  --color-muted: #6f6b62;
+  --color-muted-2: #8a8478;
+  --color-faint: #a39d90;
+
+  /* Danger */
+  --color-danger: #b8432c;
+  --color-danger-50: #f7e6e1;
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque', 'Hanken Grotesk', sans-serif;
+  --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Radii (prototype clusters at 10 / 14 / 15px for cards, 8-12 for controls) */
+  --radius-card: 15px;
+  --radius-lg: 14px;
+  --radius-md: 11px;
+  --radius-sm: 9px;
+
+  /* Elevation */
+  --shadow-soft: 0 1px 2px rgba(27, 26, 23, 0.04), 0 8px 24px -12px rgba(27, 26, 23, 0.12);
+  --shadow-float: 0 30px 70px -20px rgba(11, 79, 58, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink-soft);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Material Symbols Rounded icon font */
+.msr {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.msr.fill {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Shared form control */
+.input {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  border-color: var(--color-green);
+  box-shadow: 0 0 0 3px rgba(11, 79, 58, 0.12);
+}
+
+/* Tabular figures for money/ledger columns */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Guide articles: commands, paths and placeholders read as literal text. */
+.guide-body code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-sand-deep);
+  border: 1px solid var(--color-line);
+  border-radius: 5px;
+  padding: 0.1em 0.38em;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.guide-body strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+/* Thin themed scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-deep) transparent;
+}

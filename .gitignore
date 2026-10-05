@@ -1,0 +1,48 @@
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+.pytest_cache/
+.env
+*.log
+
+# collectstatic output — regenerated on each deploy, never edited by hand
+backend/staticfiles/
+
+# Application logs (rotating; see LOGGING in config/settings/base.py)
+backend/logs/
+
+# Uploaded media (member photos, KYC documents)
+media/
+backend/media/
+
+# Frontend (React)
+node_modules/
+frontend/dist/
+frontend/node_modules/
+test-results/
+
+# Mobile (Flutter) — generated build artifacts
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins-dependencies
+
+# macOS
+.DS_Store
+
+# Claude Code personal settings (per-machine, not shared)
+.claude/settings.local.json
+
+# Android signing material — belt and braces.
+# mobile/android/.gitignore already covers these for that subtree; repeated here
+# because a leaked upload key cannot be rotated: Play Store signs releases with
+# it for the life of the app, so one accidental commit anywhere is permanent.
+*.jks
+*.keystore
+key.properties
+
+# backend/ is its own git repository, with its own remote
+# (github.com/ojsys/coop) and history going back to September. Staging it from
+# here records a submodule gitlink instead of the files — which silently commits
+# a pointer and nothing else. Commit backend changes inside backend/.
+/backend/
