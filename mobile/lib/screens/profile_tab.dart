@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import '../api.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'legal_webview.dart';
 import '../widgets.dart';
 import 'member_scaffold.dart';
 
@@ -269,7 +270,16 @@ class _ProfileTabState extends State<ProfileTab> {
                   p.bankName.isEmpty
                       ? '—'
                       : '${p.bankName}${p.bankAccountNo.isNotEmpty ? ' · ${p.bankAccountNo}' : ''}',
-                  last: true),
+                  last: p.bankName.isEmpty || p.bankCode.isNotEmpty),
+              // A name without a code cannot receive a transfer, and the member
+              // is the only one who can fix it. Saying so here is cheaper than
+              // an officer chasing them when a loan cannot be paid.
+              if (p.bankName.isNotEmpty && p.bankCode.isEmpty)
+                _kv(
+                    '',
+                    'Tap Edit and pick your bank from the list so loan '
+                    'payments can reach this account.',
+                    last: true),
             ],
           ),
         ),
@@ -299,16 +309,57 @@ class _ProfileTabState extends State<ProfileTab> {
         _label('SETTINGS'),
         AppCard(
           padding: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.danger),
-            title: const Text('Sign out',
-                style: TextStyle(
-                    color: AppColors.danger, fontWeight: FontWeight.w600)),
-            onTap: widget.onSignOut,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.shield_outlined,
+                    color: AppColors.muted),
+                title: const Text('Privacy policy'),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.muted2),
+                onTap: () => _openPolicy('privacy', 'Privacy policy'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.description_outlined,
+                    color: AppColors.muted),
+                title: const Text('Terms of use'),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.muted2),
+                onTap: () => _openPolicy('terms', 'Terms of use'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.logout, color: AppColors.danger),
+                title: const Text('Sign out',
+                    style: TextStyle(
+                        color: AppColors.danger,
+                        fontWeight: FontWeight.w600)),
+                onTap: widget.onSignOut,
+              ),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  /// Opens a published policy on the website, in-app.
+  ///
+  /// The URL is derived from the configured API base rather than hard-coded, so
+  /// a build pointed at staging with --dart-define=API_BASE opens staging's
+  /// policies instead of production's. The web app serves these at `/legal/<slug>`
+  /// and the content itself is maintained by an administrator, so the text can
+  /// be corrected without shipping an app update.
+  void _openPolicy(String slug, String title) {
+    final api = Uri.parse(widget.api.baseUrl);
+    final site = Uri(scheme: api.scheme, host: api.host, port: api.hasPort ? api.port : null);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => LegalWebView(
+        url: '$site/legal/$slug',
+        title: title,
+      ),
+    ));
   }
 
   Widget _label(String text) => Padding(
@@ -442,9 +493,40 @@ class _EditKycSheetState extends State<_EditKycSheet> {
   late final _kinPhone =
       TextEditingController(text: widget.profile.nextOfKinPhone);
   late final _bank = TextEditingController(text: widget.profile.bankName);
+
+  // The bank catalogue, and the code the member has picked from it.
+  //
+  // A name alone cannot be paid: a transfer recipient is created from the
+  // provider's bank *code*. Until this screen asked for one, every member who
+  // only ever used the app had a blank code and their approved loans could not
+  // be disbursed electronically at all.
+  List<BankOption> _banks = const [];
+  bool _loadingBanks = true;
+  late String _bankCode = widget.profile.bankCode;
   late final _account =
       TextEditingController(text: widget.profile.bankAccountNo);
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBanks();
+  }
+
+  Future<void> _loadBanks() async {
+    final banks = await widget.api.banks();
+    if (!mounted) return;
+    setState(() {
+      _banks = banks;
+      _loadingBanks = false;
+      // A stored code that is no longer in the catalogue would make the
+      // dropdown throw, so drop it and let the member pick again.
+      if (_bankCode.isNotEmpty &&
+          !banks.any((b) => b.code == _bankCode)) {
+        _bankCode = '';
+      }
+    });
+  }
 
   Future<void> _save() async {
     setState(() => _saving = true);
@@ -457,6 +539,7 @@ class _EditKycSheetState extends State<_EditKycSheet> {
         'next_of_kin_name': _kin.text,
         'next_of_kin_phone': _kinPhone.text,
         'bank_name': _bank.text,
+        'bank_code': _bankCode,
         'bank_account_no': _account.text,
       });
       if (mounted) Navigator.pop(context, true);
@@ -494,7 +577,7 @@ class _EditKycSheetState extends State<_EditKycSheet> {
             _field(_address, 'Address'),
             _field(_kin, 'Next of kin'),
             _field(_kinPhone, 'Next of kin phone'),
-            _field(_bank, 'Bank name'),
+            _bankPicker(),
             _field(_account, 'Bank account no.'),
             const SizedBox(height: 8),
             FilledButton(
@@ -510,6 +593,76 @@ class _EditKycSheetState extends State<_EditKycSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Pick the bank from the provider's list, or type it when there is no list.
+  ///
+  /// The fallback is deliberate rather than a failure mode: the catalogue is
+  /// empty until `refresh_banks` has run against a live key, and a member should
+  /// still be able to record their bank in the meantime — they simply cannot be
+  /// paid electronically until a code is on file, which is what the console's
+  /// awaiting-payment queue reports.
+  Widget _bankPicker() {
+    if (_loadingBanks) {
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 12),
+        child: InputDecorator(
+          decoration: InputDecoration(
+              labelText: 'Bank', border: OutlineInputBorder()),
+          child: SizedBox(
+              height: 20,
+              child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2)))),
+        ),
+      );
+    }
+
+    if (_banks.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _field(_bank, 'Bank name'),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              'The verified bank list is unavailable, so your bank name has '
+              'been saved as typed. Your cooperative may ask you to pick it '
+              'again before a loan can be paid to you.',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: _bankCode.isEmpty ? null : _bankCode,
+        isExpanded: true,
+        decoration: const InputDecoration(
+            labelText: 'Bank', border: OutlineInputBorder()),
+        hint: const Text('Select your bank'),
+        items: [
+          for (final b in _banks)
+            DropdownMenuItem(value: b.code, child: Text(b.name)),
+        ],
+        onChanged: (code) {
+          if (code == null) return;
+          setState(() {
+            _bankCode = code;
+            // Keep the name in step with the code: the loan's destination
+            // snapshot stores both, and an officer reads the name.
+            _bank.text =
+                _banks.firstWhere((b) => b.code == code).name;
+          });
+        },
       ),
     );
   }

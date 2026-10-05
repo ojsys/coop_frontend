@@ -61,6 +61,74 @@ flutter analyze     # static analysis — currently clean
 flutter test        # widget smoke test (unauthenticated → sign-in screen)
 ```
 
+## Distributing the APK from the website (side-loading)
+
+Members download this from the marketing page while the app is not yet on Google
+Play. It is a different artefact from the Play release — an `.apk`, not an
+`.aab` — but it must be signed with **the same upload key**, for the reason in
+the warning below.
+
+### Sign it first. This is not optional for anything a member installs.
+
+Android refuses to update an installed app unless the new version carries the
+**same signature**. A debug-signed APK therefore cannot be upgraded in place to a
+properly signed one: every member who installed it has to uninstall the app
+before they can take any future update, and you have to tell them so.
+
+So create the upload key (§ *Releasing to Google Play* → step 1) **before** you
+put an APK on the website, and use it for both. Then the same signature carries
+through from the side-loaded build to the eventual Play release, and nobody has
+to uninstall anything.
+
+Gradle prints a loud warning when `android/key.properties` is missing and falls
+back to debug keys. Treat that warning as a stop sign for anything you intend to
+distribute. To check an APK you already have:
+
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+"$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs <file>.apk
+```
+
+`CN=Android Debug` means debug-signed. Your own build shows the name you typed
+into `keytool`.
+
+### Build and name it
+
+```bash
+flutter build apk --release
+mkdir -p dist && cp build/app/outputs/flutter-apk/app-release.apk \
+  dist/CooperativeOS.apk
+```
+
+The file name is what members see in their downloads, so it is renamed from
+Flutter's `app-release.apk`. `mobile/dist/` is git-ignored: a 22 MB binary does
+not belong in the repository, and the APK is reproducible from any commit.
+
+`--dart-define=API_BASE=...` is unnecessary for production — that is already the
+default — but is how you point a build at staging.
+
+### Publish it
+
+Django admin → **Site content** → *Mobile apps* → upload the file into
+**Android apk**, and leave **Android store url** empty until the app is on Play
+(a store link takes precedence, so filling it in later switches members over
+without touching the file).
+
+If the upload times out, the host's request size limit is the cause: put the file
+on the server over SFTP and set **Android store url** to its URL instead.
+
+### Download counts
+
+The marketing page links to `/api/v1/public/app/android/`, which records the
+download and then redirects to the file (or to the store listing when one is
+set). Counts are visible in Django admin → **App download tallies**, which shows
+a running total and a figure per day.
+
+It counts *clicks on the link*, not installs — bots, link previews and browser
+prefetching are included — so read it as a direction of travel. The table stores
+only a platform, a date and a count: no IP address, no user agent, nothing that
+identifies anyone, so there is no retention question to answer.
+
 ## Releasing to Google Play
 
 ### What is already configured

@@ -245,6 +245,26 @@ class Api {
     return res.bodyBytes;
   }
 
+  /// The provider's bank list, as `{code, name}` pairs.
+  ///
+  /// Comes from the same `/reference/` endpoint the web console reads, so the
+  /// two cannot offer different banks. Returns an empty list when the catalogue
+  /// has not been pulled yet (no live PSP key, or `refresh_banks` never run) —
+  /// the profile sheet then falls back to a free-text field so bank entry keeps
+  /// working either way.
+  Future<List<BankOption>> banks() async {
+    try {
+      final data = await _get('/reference/');
+      final rows = (data['banks'] as List<dynamic>? ?? const []);
+      return rows
+          .map((b) => BankOption.fromJson(b as Map<String, dynamic>))
+          .toList();
+    } on ApiException {
+      // A missing catalogue must not block someone editing their address.
+      return const <BankOption>[];
+    }
+  }
+
   Future<List<ContributionType>> contributionTypes() async {
     final list = await _getList('/contribution-types/');
     return list
@@ -638,6 +658,7 @@ class MemberProfile {
     required this.nextOfKinName,
     required this.nextOfKinPhone,
     required this.bankName,
+    required this.bankCode,
     required this.bankAccountNo,
     required this.documentCount,
   });
@@ -658,6 +679,14 @@ class MemberProfile {
   final String nextOfKinName;
   final String nextOfKinPhone;
   final String bankName;
+
+  /// The provider's code for [bankName] — e.g. "044" for Access Bank.
+  ///
+  /// Without it a loan cannot be paid out electronically: a transfer recipient
+  /// is created from a bank *code*, never from a name. Blank on every record
+  /// written before the picker existed, which is why the edit sheet asks for it
+  /// again rather than assuming the stored name is enough.
+  final String bankCode;
   final String bankAccountNo;
   final int documentCount;
 
@@ -679,8 +708,20 @@ class MemberProfile {
         nextOfKinName: j['next_of_kin_name'] as String? ?? '',
         nextOfKinPhone: j['next_of_kin_phone'] as String? ?? '',
         bankName: j['bank_name'] as String? ?? '',
+        bankCode: j['bank_code'] as String? ?? '',
         bankAccountNo: j['bank_account_no'] as String? ?? '',
         documentCount: j['document_count'] as int? ?? 0,
+      );
+}
+
+class BankOption {
+  const BankOption({required this.code, required this.name});
+  final String code;
+  final String name;
+
+  factory BankOption.fromJson(Map<String, dynamic> j) => BankOption(
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String? ?? '',
       );
 }
 

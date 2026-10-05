@@ -24,6 +24,8 @@ test-results/
 
 # Mobile (Flutter) — generated build artifacts
 mobile/build/
+# The renamed, distributable APK — 22 MB, and reproducible from any commit.
+mobile/dist/
 mobile/.dart_tool/
 mobile/.flutter-plugins-dependencies
 
