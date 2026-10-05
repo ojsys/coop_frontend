@@ -40,7 +40,11 @@ export function BankSelect({
     return (
       <Field
         label={label}
-        hint="Bank list unavailable — type the name; an officer can pick it from the list later."
+        // Names the cause and who can fix it. The old wording ("an officer can
+        // pick it from the list later") described a list that does not exist
+        // yet, so an officer reading it had nothing to act on — and every
+        // record saved in this state carries no bank code and cannot be paid.
+        hint="The verified bank list has not been loaded on this server yet, so a bank code cannot be recorded and this account cannot receive an electronic payout. Type the name for now and ask Startup Ripple to load the bank catalogue."
       >
         <input
           required={required}

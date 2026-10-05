@@ -118,6 +118,9 @@ export interface UpdateMemberInput {
   next_of_kin_name?: string
   next_of_kin_phone?: string
   bank_name?: string
+  /** Paystack's code for `bank_name`. Omitting it was why officers could save a
+   *  member's bank details that could never receive a payout. */
+  bank_code?: string
   bank_account_no?: string
 }
 

@@ -5,6 +5,7 @@ import { useToast } from '@/ui/toast'
 import { Modal } from '@/ui/Modal'
 import { Button } from '@/ui/Button'
 import { Field, Select } from '@/ui/Field'
+import { BankSelect } from '@/ui/BankSelect'
 import { apiErrorMessage } from '@/lib/apiError'
 import type { Member } from '@/api/types'
 
@@ -42,6 +43,11 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
     next_of_kin_name: member.next_of_kin_name ?? '',
     next_of_kin_phone: member.next_of_kin_phone ?? '',
     bank_name: member.bank_name ?? '',
+    // Paystack identifies a bank by code, never by name. This form used to send
+    // the name alone, so a member whose details an officer typed here could
+    // never be paid electronically — their approved loans sat in the
+    // awaiting-payment queue reading "no bank code" with nothing to act on.
+    bank_code: member.bank_code ?? '',
     bank_account_no: member.bank_account_no ?? '',
   })
 
@@ -68,6 +74,7 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
         next_of_kin_name: form.next_of_kin_name,
         next_of_kin_phone: form.next_of_kin_phone,
         bank_name: form.bank_name,
+        bank_code: form.bank_code,
         bank_account_no: form.bank_account_no,
       })
       toast('Member updated')
@@ -139,7 +146,11 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
               <Field label="Kin phone"><input value={form.next_of_kin_phone} onChange={(e) => set('next_of_kin_phone', e.target.value)} className="input" /></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Bank"><input value={form.bank_name} onChange={(e) => set('bank_name', e.target.value)} className="input" /></Field>
+              <BankSelect
+                name={form.bank_name}
+                code={form.bank_code}
+                onChange={(next) => setForm((f) => ({ ...f, ...next }))}
+              />
               <Field label="Account no."><input value={form.bank_account_no} onChange={(e) => set('bank_account_no', e.target.value)} className="input" /></Field>
             </div>
           </div>
