@@ -152,6 +152,10 @@ export interface Loan {
   member_phone?: string
   member_email?: string
   member_bank_name?: string
+  /** The member's *current* bank code. Compared against
+   *  `destination_bank_code` to tell whether refreshing the frozen
+   *  destination would actually make the loan payable. */
+  member_bank_code?: string
   member_bank_account_no?: string
   member_share_capital?: string
   member_photo?: string | null

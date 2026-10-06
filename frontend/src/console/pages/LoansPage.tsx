@@ -187,6 +187,17 @@ export function LoansPage() {
         <DisburseModal
           loan={disburseFor}
           onClose={() => setDisburseFor(null)}
+          refreshing={action.isPending}
+          onRefreshDestination={async () => {
+            await act(disburseFor, 'refresh-destination',
+                      "Destination updated to the member's current bank")
+            // Re-read so the modal shows the new destination rather than
+            // closing and leaving the officer to find the loan again.
+            setDisburseFor((current) =>
+              current
+                ? loans.find((l) => l.id === current.id) ?? current
+                : current)
+          }}
           onPayToBank={async () => {
             await act(disburseFor, 'pay-electronically',
                       'Payment sent — the member will be notified')
@@ -533,7 +544,15 @@ function schedulePreview(loan: Loan) {
  * button is how one of those gets paid a second time. The officer has to say
  * which happened.
  */
-function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, busy }: { loan: Loan; onClose: () => void; onPayToBank: () => void; onRecordCash: () => void; busy: boolean }) {
+function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDestination, refreshing, busy }: { loan: Loan; onClose: () => void; onPayToBank: () => void; onRecordCash: () => void; onRefreshDestination: () => void; refreshing: boolean; busy: boolean }) {
+  // Refreshing only helps when the member's own record carries a code the
+  // snapshot does not. Offering it otherwise would promise a fix that changes
+  // nothing.
+  const canRefresh = Boolean(
+    loan.member_bank_code &&
+      loan.member_bank_account_no &&
+      loan.member_bank_code !== loan.destination_bank_code,
+  )
   const monthly = loan.monthly_instalment ?? String(Number(loan.total_repayable) / (loan.term_months || 1))
   return (
     <Modal open onClose={onClose} title="Review & disburse" subtitle="Confirm the recipient and account before releasing funds">
@@ -569,9 +588,40 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, busy }: { loa
           </p>
         )}
 
-        {loan.destination_account_no && !loan.destination_is_payable && (
+        {/* The destination froze at approval, which is what stops a vetted
+            payout being redirected. When the member has since supplied details
+            the snapshot lacks, refreshing it is the only way to make the loan
+            payable — so offer that here rather than leaving a dead end. */}
+        {!loan.destination_is_payable && canRefresh && (
+          <div className="rounded-lg bg-gold-50 px-3 py-2.5 text-xs text-gold-deep">
+            <p className="flex items-start gap-2">
+              <Icon name="warning" size={16} />
+              <span>
+                This loan was approved before the member's bank details were
+                usable, so it still carries the blank destination it was approved
+                with. Their record now reads{' '}
+                <strong>
+                  {loan.member_bank_name} {loan.member_bank_account_no}
+                </strong>
+                .
+              </span>
+            </p>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="sync"
+              className="mt-2"
+              loading={refreshing}
+              onClick={onRefreshDestination}
+            >
+              Use the member's current bank details
+            </Button>
+          </div>
+        )}
+
+        {!loan.destination_is_payable && !canRefresh && loan.destination_account_no && (
           <p className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs text-gold-deep">
-            <Icon name="warning" size={16} /> No bank code recorded for this account, so it cannot be paid electronically. Ask the member to re-pick their bank from the list.
+            <Icon name="warning" size={16} /> No bank code recorded for this account, so it cannot be paid electronically. Record the member's bank from the list on their profile first, then refresh this destination.
           </p>
         )}
 
