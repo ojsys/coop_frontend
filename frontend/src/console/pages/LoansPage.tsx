@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useLoans, useDisbursementEvidence, useLoanHealth, useLoanProducts, useMembers, usePendingRepayments } from '@/api/hooks'
+import { Link } from 'react-router-dom'
+import { useLoans, useDisbursementEvidence, useLoanHealth, useLoanProducts, useMembers, usePendingRepayments, useWallet } from '@/api/hooks'
 import { useLoansCrud, useLoanProductsCrud, useConfirmRepayment, useRejectRepayment, useRecheckDisbursement } from '@/api/mutations'
 import { useAuth } from '@/auth/AuthContext'
 import { useToast } from '@/ui/toast'
@@ -40,6 +41,12 @@ export function LoansPage() {
 
   // Approved-but-unpaid loans and genuine inconsistencies arrive together but
   // are kept apart: the first is a queue of work, the second is damage.
+  // The float every electronic disbursement draws on. Shown here because this
+  // is where an officer decides to lend — finding out the wallet is short at the
+  // moment of payment is finding out too late.
+  const wallet = useWallet()
+  const walletBalance = Number(wallet.data?.balance ?? 0)
+
   const health = useLoanHealth()
   const awaiting = (health.data?.findings ?? []).filter(
     (f) => f.code === 'awaiting_payment',
@@ -67,7 +74,15 @@ export function LoansPage() {
         actions={<Button size="sm" icon="add" onClick={() => setApplyOpen(true)}>New loan</Button>}
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Link to="/console/wallet" className="block transition hover:opacity-90">
+          <StatTile
+            label="Wallet available to lend"
+            value={naira(walletBalance, { compact: true })}
+            icon="wallet"
+            iconTone={walletBalance > 0 ? 'green' : 'danger'}
+          />
+        </Link>
         <StatTile label="Outstanding" value={naira(outstanding, { compact: true })} icon="account_balance_wallet" iconTone="gold" />
         <StatTile label="Pending approval" value={pending} icon="pending_actions" iconTone="neutral" />
         <StatTile label="Active loans" value={loans.filter((l) => l.status === 'disbursed').length} icon="request_quote" iconTone="green" />
@@ -187,6 +202,7 @@ export function LoansPage() {
         <DisburseModal
           loan={disburseFor}
           onClose={() => setDisburseFor(null)}
+          walletBalance={walletBalance}
           refreshing={action.isPending}
           onRefreshDestination={async () => {
             await act(disburseFor, 'refresh-destination',
@@ -544,7 +560,13 @@ function schedulePreview(loan: Loan) {
  * button is how one of those gets paid a second time. The officer has to say
  * which happened.
  */
-function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDestination, refreshing, busy }: { loan: Loan; onClose: () => void; onPayToBank: () => void; onRecordCash: () => void; onRefreshDestination: () => void; refreshing: boolean; busy: boolean }) {
+function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDestination, refreshing, busy, walletBalance }: { loan: Loan; onClose: () => void; onPayToBank: () => void; onRecordCash: () => void; onRefreshDestination: () => void; refreshing: boolean; busy: boolean; walletBalance: number }) {
+  // An electronic payout draws on the wallet, so a short balance is a refusal
+  // waiting to happen. Saying so here — with the shortfall — is the difference
+  // between an officer funding the wallet and an officer wondering why the
+  // button failed.
+  const shortfall = Number(loan.principal) - walletBalance
+  const walletShort = shortfall > 0
   // Refreshing only helps when the member's own record carries a code the
   // snapshot does not. Offering it otherwise would promise a fix that changes
   // nothing.
@@ -671,6 +693,32 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
 
         <p className="text-xs text-muted-2">Either action posts a balanced journal to the ledger, builds the repayment schedule, and notifies the member by app + email.</p>
 
+        {walletShort ? (
+          <div className="rounded-lg bg-gold-50 px-3 py-2.5 text-xs text-gold-deep">
+            <p className="flex items-start gap-2">
+              <Icon name="account_balance_wallet" size={16} />
+              <span>
+                The disbursement wallet holds{' '}
+                <strong>{naira(walletBalance)}</strong>, which is{' '}
+                <strong>{naira(shortfall)}</strong> short of this loan's{' '}
+                {naira(loan.principal)}. Paying to a bank will be refused until
+                it is funded. Recording a cash disbursement does not use the
+                wallet.
+              </span>
+            </p>
+            <Link to="/console/wallet">
+              <Button size="sm" variant="secondary" icon="add" className="mt-2">
+                Fund the wallet
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green">
+            <Icon name="check" size={14} /> The wallet holds{' '}
+            {naira(walletBalance)} — enough to cover this {naira(loan.principal)}.
+          </div>
+        )}
+
         <div className="rounded-lg bg-sand-deep px-3 py-2.5 text-xs text-muted">
           <strong className="text-ink">Has this already been paid in cash?</strong>{' '}
           If an officer handed the money over outside the system, record it as a
@@ -686,8 +734,14 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
             size="sm"
             icon="account_balance"
             loading={busy}
-            disabled={!loan.destination_is_payable}
-            title={loan.destination_is_payable ? undefined : 'No bank code recorded for this member'}
+            disabled={!loan.destination_is_payable || walletShort}
+            title={
+              !loan.destination_is_payable
+                ? 'No bank code recorded for this member'
+                : walletShort
+                  ? `The wallet is ${naira(shortfall)} short of this loan`
+                  : undefined
+            }
             onClick={onPayToBank}
           >
             Pay {naira(loan.principal)} to bank

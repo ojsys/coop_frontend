@@ -16,6 +16,9 @@ const NAV: NavItem[] = [
   { to: '/console/reconciliation', label: 'Reconciliation', icon: 'sync_alt' },
   { to: '/console/governance', label: 'Governance', icon: 'how_to_vote' },
   { to: '/console/loans', label: 'Loans & Credit', icon: 'request_quote' },
+  // Beside Loans deliberately: it is the float lending draws on, and an officer
+  // reaching for one usually needs the other.
+  { to: '/console/wallet', label: 'Disbursement wallet', icon: 'account_balance_wallet' },
   { to: '/console/withdrawals', label: 'Withdrawals', icon: 'payments' },
   { to: '/console/payouts', label: 'Payouts', icon: 'send_money' },
   { to: '/console/approvals', label: 'Approvals', icon: 'fact_check' },

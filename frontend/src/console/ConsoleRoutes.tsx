@@ -14,6 +14,7 @@ import { DividendsPage } from './pages/DividendsPage'
 import { LoansPage } from './pages/LoansPage'
 import { WithdrawalsPage } from './pages/WithdrawalsPage'
 import { PayoutsPage } from './pages/PayoutsPage'
+import { WalletPage } from './pages/WalletPage'
 import { ApprovalsPage } from './pages/ApprovalsPage'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -34,6 +35,7 @@ export function ConsoleRoutes() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="activity" element={<ActivityPage />} />
         <Route path="loans" element={<LoansPage />} />
+        <Route path="wallet" element={<WalletPage />} />
         <Route path="withdrawals" element={<WithdrawalsPage />} />
         <Route path="payouts" element={<PayoutsPage />} />
         <Route path="approvals" element={<ApprovalsPage />} />
