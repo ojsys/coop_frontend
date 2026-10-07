@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLoans, useDisbursementEvidence, useLoanHealth, useLoanProducts, useMembers, usePendingRepayments, useWallet } from '@/api/hooks'
-import { useLoansCrud, useLoanProductsCrud, useConfirmRepayment, useRejectRepayment, useRecheckDisbursement } from '@/api/mutations'
+import { useLoansCrud, useLoanProductsCrud, useConfirmRepayment, useRejectRepayment, useRecheckDisbursement, useFixLoanHealth } from '@/api/mutations'
 import { useAuth } from '@/auth/AuthContext'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
@@ -55,6 +55,16 @@ export function LoansPage() {
     (f) => f.code !== 'awaiting_payment',
   )
   const loanById = new Map(loans.map((l) => [l.id, l]))
+  const fixHealth = useFixLoanHealth()
+
+  async function applyFix(loanId: number, code: string) {
+    try {
+      const { result } = await fixHealth.mutateAsync({ loanId, code })
+      toast(`Loan ${loanId}: ${result}`)
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not apply the fix'), 'error')
+    }
+  }
 
   async function act(loan: Loan, a: string, label: string) {
     try {
@@ -110,11 +120,26 @@ export function LoansPage() {
                   ? ` (${health.data.critical} critical)`
                   : ''}.
               </span>
-              <ul className="mt-1.5 space-y-1">
+              <ul className="mt-1.5 space-y-1.5">
                 {defects.slice(0, 4).map((f) => (
-                  <li key={`${f.code}-${f.loan_id}`}>
-                    Loan {f.loan_id} · {f.member} — {f.title}.{' '}
-                    <span className="text-muted">{f.fix}</span>
+                  <li key={`${f.code}-${f.loan_id}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span>
+                      Loan {f.loan_id} · {f.member} — {f.title}.{' '}
+                      <span className="text-muted">{f.fix}</span>
+                    </span>
+                    {/* Only corrections that move no money are offered here;
+                        the rest need a person to decide. */}
+                    {canManage && f.auto_fixable && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon="build"
+                        loading={fixHealth.isPending && fixHealth.variables?.loanId === f.loan_id}
+                        onClick={() => applyFix(f.loan_id, f.code)}
+                      >
+                        Fix
+                      </Button>
+                    )}
                   </li>
                 ))}
               </ul>

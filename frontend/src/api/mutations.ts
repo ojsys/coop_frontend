@@ -989,6 +989,22 @@ export function useRecheckDisbursement() {
   })
 }
 
+/**
+ * Apply the safe correction for one loan-health finding — only those the
+ * server marks auto-fixable, which move no money (e.g. reopening a loan
+ * marked repaid while a balance is still owed).
+ */
+export function useFixLoanHealth() {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: async (input: { loanId: number; code: string }) => {
+      const { data } = await api.post(`/loans/${input.loanId}/fix-health/`, { code: input.code })
+      return data as { result: string }
+    },
+    onSuccess: invalidate,
+  })
+}
+
 export function useRecheckPayout() {
   const invalidate = useInvalidateAll()
   return useMutation({
