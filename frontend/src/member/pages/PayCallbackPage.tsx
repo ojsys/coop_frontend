@@ -36,6 +36,12 @@ export function PayCallbackPage() {
       verifyLoan
         .mutateAsync({ loanId, reference })
         .then((loan) => {
+          // The server answers 400 when Paystack has not been paid; this is
+          // a second guard so arriving here can never read as success alone.
+          if (loan.payment_status && loan.payment_status !== 'confirmed') {
+            setPhase('failed')
+            return
+          }
           setAmount(loan.repaid_amount ?? '')
           setPhase('success')
         })

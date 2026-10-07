@@ -1301,7 +1301,11 @@ export interface DisbursementEvidence {
 export interface WalletSummary {
   balance: string
   currency: string
+  /** Funding that actually arrived (confirmed only). */
   topups: WalletTopUp[]
+  /** Checkouts started but not paid: pending or failed. */
+  attempts: WalletTopUp[]
+  attempt_counts: { pending: number; failed: number }
 }
 
 /**

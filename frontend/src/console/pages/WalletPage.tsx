@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useWallet } from '@/api/hooks'
-import { useFundWallet, useWithdrawWallet } from '@/api/mutations'
+import { useFundWallet, useVerifyWalletTopUp, useWithdrawWallet } from '@/api/mutations'
 import { useAuth } from '@/auth/AuthContext'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
@@ -10,7 +11,8 @@ import { Button } from '@/ui/Button'
 import { Badge } from '@/ui/Badge'
 import { Field } from '@/ui/Field'
 import { Modal } from '@/ui/Modal'
-import { naira } from '@/lib/format'
+import { naira, shortDate } from '@/lib/format'
+import type { WalletTopUp } from '@/api/types'
 
 /**
  * The society's disbursement wallet, on its own page.
@@ -63,17 +65,52 @@ export function WalletPage() {
 function WalletCard({ canManage }: { canManage: boolean }) {
   const wallet = useWallet()
   const fund = useFundWallet()
+  const verify = useVerifyWalletTopUp()
   const withdraw = useWithdrawWallet()
   const toast = useToast()
+  const [tab, setTab] = useState<'funded' | 'attempts'>('funded')
   const [open, setOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [amount, setAmount] = useState('')
   const [outAmount, setOutAmount] = useState('')
 
+  // Paystack sends the officer back here with ?reference=. Confirming it now
+  // credits the wallet straight away; before, nothing asked, and a paid
+  // top-up sat pending until the webhook or an operator's recheck.
+  const [params, setParams] = useSearchParams()
+  const returned = params.get('reference') || params.get('trxref')
+  const handled = useRef<string | null>(null)
+  useEffect(() => {
+    if (!returned || handled.current === returned) return
+    handled.current = returned
+    setParams({}, { replace: true })
+    void check(returned)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returned])
+
+  async function check(reference: string) {
+    try {
+      const { topup } = await verify.mutateAsync(reference)
+      if (topup.status === 'confirmed') {
+        toast(`Wallet funded — ${naira(topup.net_amount)} credited`)
+        setTab('funded')
+      } else if (topup.status === 'failed') {
+        toast('Paystack reports this payment failed. Nothing was credited.', 'error')
+      } else {
+        toast('Paystack has not received this payment yet. Nothing was credited.', 'error')
+      }
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not check this payment with Paystack'), 'error')
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     try {
-      const result = await fund.mutateAsync({ amount })
+      const result = await fund.mutateAsync({
+        amount,
+        callback_url: `${window.location.origin}/console/wallet`,
+      })
       // A live key returns a checkout URL; send the officer to pay. Without
       // one the top-up stays pending and is confirmed separately.
       if (result.authorization_url) {
@@ -101,6 +138,9 @@ function WalletCard({ canManage }: { canManage: boolean }) {
   }
 
   const topups = wallet.data?.topups ?? []
+  const attempts = wallet.data?.attempts ?? []
+  const counts = wallet.data?.attempt_counts
+  const unpaid = (counts?.pending ?? 0) + (counts?.failed ?? 0)
 
   return (
     <Card>
@@ -136,37 +176,56 @@ function WalletCard({ canManage }: { canManage: boolean }) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        {topups.map((t) => (
-          <div
-            key={t.id}
-            className="flex items-center justify-between rounded-lg border border-line bg-paper px-3.5 py-2.5"
-          >
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-ink">
-                {naira(t.amount)}
-                {Number(t.fee) > 0 && (
-                  <span className="text-xs font-normal text-muted">
-                    {' '}· {naira(t.fee)} fee · {naira(t.net_amount)} credited
-                  </span>
-                )}
-              </div>
-              <div className="font-mono text-xs text-muted-2">
-                {t.psp_reference}
-              </div>
-            </div>
-            <Badge tone={t.is_confirmed ? 'green' : 'gold'} dot>
-              {t.status_display}
-            </Badge>
-          </div>
-        ))}
-        {topups.length === 0 && (
-          <p className="py-2 text-sm text-muted">
-            Nothing funded yet. A loan cannot be disbursed electronically until
-            this wallet holds money.
-          </p>
-        )}
+      {/* Clicking "Fund wallet" records an attempt before any money moves,
+          so the history leads with funding that actually arrived. The rest
+          stay one tab away for whoever is reconciling. */}
+      <div className="mb-3 flex items-center gap-1 border-b border-line pb-2">
+        <TabButton active={tab === 'funded'} onClick={() => setTab('funded')} label="Successful funding" />
+        <TabButton
+          active={tab === 'attempts'}
+          onClick={() => setTab('attempts')}
+          label={`Other attempts${unpaid ? ` (${unpaid})` : ''}`}
+        />
       </div>
+
+      {tab === 'funded' ? (
+        <div className="space-y-2">
+          {topups.map((t) => <TopUpRow key={t.id} topup={t} />)}
+          {topups.length === 0 && (
+            <p className="py-2 text-sm text-muted">
+              Nothing funded yet. A loan cannot be disbursed electronically until
+              this wallet holds money.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-2">
+            Checkouts that were started but not paid. Nothing here was credited.
+            If one was paid, check it with Paystack to credit it.
+          </p>
+          {attempts.map((t) => (
+            <TopUpRow
+              key={t.id}
+              topup={t}
+              action={canManage && t.status === 'pending' ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="sync"
+                  loading={verify.isPending && verify.variables === t.psp_reference}
+                  onClick={() => check(t.psp_reference)}
+                >
+                  Check with Paystack
+                </Button>
+              ) : undefined}
+            />
+          ))}
+          {attempts.length === 0 && (
+            <p className="py-2 text-sm text-muted">No unpaid attempts.</p>
+          )}
+        </div>
+      )}
 
       {withdrawOpen && (
         <Modal
@@ -252,5 +311,47 @@ function WalletCard({ canManage }: { canManage: boolean }) {
         </Modal>
       )}
     </Card>
+  )
+}
+
+function TopUpRow({ topup: t, action }: { topup: WalletTopUp; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-paper px-3.5 py-2.5">
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-ink">
+          {naira(t.amount)}
+          {t.is_confirmed && Number(t.fee) > 0 && (
+            <span className="text-xs font-normal text-muted">
+              {' '}· {naira(t.fee)} fee · {naira(t.net_amount)} credited
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-muted-2">
+          <span className="font-mono">{t.psp_reference}</span>
+          {' · '}{shortDate(t.confirmed_at ?? t.created_at)}
+          {t.initiated_by_name && ` · ${t.initiated_by_name}`}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {action}
+        <Badge tone={t.is_confirmed ? 'green' : t.status === 'failed' ? 'danger' : 'gold'} dot>
+          {t.status_display}
+        </Badge>
+      </div>
+    </div>
+  )
+}
+
+function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition ${
+        active ? 'bg-green-50 text-green' : 'text-muted hover:bg-sand-deep'
+      }`}
+    >
+      {label}
+    </button>
   )
 }

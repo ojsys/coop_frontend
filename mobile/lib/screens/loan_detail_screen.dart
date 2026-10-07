@@ -103,7 +103,15 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
         return;
       }
 
-      await widget.api.verifyLoanRepayment(loan.id, reference);
+      // The server answers with an error unless Paystack confirms the full
+      // amount arrived — returning from checkout also happens on cancel.
+      try {
+        await widget.api.verifyLoanRepayment(loan.id, reference);
+      } on ApiException catch (e) {
+        if (mounted) _snack('Payment not completed: ${e.message}');
+        _reload();
+        return;
+      }
       if (!mounted) return;
       _snack('Repayment received — thank you!');
       _reload();

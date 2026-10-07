@@ -15,7 +15,7 @@ import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
 import { naira, shortDate } from '@/lib/format'
-import type { DisbursementVerdict, Loan, LoanFinding } from '@/api/types'
+import type { DisbursementVerdict, Loan, LoanFinding, RepaymentClaim } from '@/api/types'
 
 const statusTone = (s: string) =>
   s === 'repaid' || s === 'approved' ? 'green' : s === 'rejected' ? 'danger' : s === 'disbursed' ? 'gold' : 'neutral'
@@ -479,47 +479,93 @@ function ClaimsPanel() {
   const toast = useToast()
   if (claims.length === 0) return null
 
+  // Two different kinds of "pending", confirmed two different ways. A reported
+  // bank transfer went to the society's own bank, which only an officer can
+  // check. An online payment is confirmed by Paystack alone — the officer can
+  // ask it, never vouch for it — because a checkout the member abandoned is
+  // also "pending", and confirming that would mark an unpaid loan as repaid.
+  const transfers = claims.filter((c) => c.channel !== 'psp')
+  const online = claims.filter((c) => c.channel === 'psp')
+
   async function act(id: number, fn: typeof confirm, label: string) {
     try { await fn.mutateAsync(id); toast(label) }
     catch (err) { toast(apiErrorMessage(err, 'Action failed'), 'error') }
   }
+  const busy = (fn: typeof confirm, id: number) => fn.isPending && fn.variables === id
 
   return (
-    <Card padded={false} className="mb-4 border-gold-100">
-      <div className="flex items-center gap-2 border-b border-line px-5 py-3">
-        <Icon name="hourglass_top" size={18} className="text-gold-deep" />
-        <span className="text-sm font-semibold text-ink">Reported transfers to verify</span>
-        <Badge tone="gold">{claims.length}</Badge>
-        {!canManage && (
-          <span className="text-xs text-muted-2">· a Treasurer or Secretary verifies these</span>
-        )}
-      </div>
-      <div className="divide-y divide-line">
-        {claims.map((c) => (
-          <div key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-ink">{c.member_name}</span>
-                <span className="font-mono text-xs text-muted-2">{c.member_no}</span>
-              </div>
-              <div className="text-xs text-muted-2">
-                {c.product_name} · reported <span className="font-mono text-ink-soft">{naira(c.amount)}</span> · outstanding {naira(c.outstanding)}
-                {c.note && ` · “${c.note}”`}
-              </div>
-              {c.member_bank_account_no && (
-                <div className="text-xs text-muted-2">From: {c.member_bank_name} {c.member_bank_account_no}</div>
-              )}
-            </div>
-            {canManage && (
-              <div className="flex gap-1.5">
-                <Button size="sm" icon="check" loading={confirm.isPending} onClick={() => act(c.id, confirm, 'Repayment confirmed & posted')}>Confirm</Button>
-                <Button size="sm" variant="secondary" loading={reject.isPending} onClick={() => act(c.id, reject, 'Claim dismissed')}>Dismiss</Button>
-              </div>
+    <>
+      {transfers.length > 0 && (
+        <Card padded={false} className="mb-4 border-gold-100">
+          <div className="flex items-center gap-2 border-b border-line px-5 py-3">
+            <Icon name="hourglass_top" size={18} className="text-gold-deep" />
+            <span className="text-sm font-semibold text-ink">Reported transfers to verify</span>
+            <Badge tone="gold">{transfers.length}</Badge>
+            {canManage ? (
+              <span className="text-xs text-muted-2">· confirm only once the money shows on the society&apos;s bank statement</span>
+            ) : (
+              <span className="text-xs text-muted-2">· a Treasurer or Secretary verifies these</span>
             )}
           </div>
-        ))}
+          <div className="divide-y divide-line">
+            {transfers.map((c) => (
+              <div key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                <ClaimFacts claim={c} verb="reported" />
+                {canManage && (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" icon="check" loading={busy(confirm, c.id)} onClick={() => act(c.id, confirm, 'Repayment confirmed & posted')}>Confirm</Button>
+                    <Button size="sm" variant="secondary" loading={busy(reject, c.id)} onClick={() => act(c.id, reject, 'Claim dismissed')}>Dismiss</Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {online.length > 0 && (
+        <Card padded={false} className="mb-4">
+          <div className="flex items-center gap-2 border-b border-line px-5 py-3">
+            <Icon name="credit_card" size={18} className="text-muted" />
+            <span className="text-sm font-semibold text-ink">Online payments not yet confirmed</span>
+            <Badge tone="neutral">{online.length}</Badge>
+            <span className="text-xs text-muted-2">· posted only when Paystack confirms the money arrived</span>
+          </div>
+          <div className="divide-y divide-line">
+            {online.map((c) => (
+              <div key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                <ClaimFacts claim={c} verb="started" />
+                {canManage && (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" icon="sync" loading={busy(confirm, c.id)} onClick={() => act(c.id, confirm, 'Paystack confirmed it — repayment posted')}>Check with Paystack</Button>
+                    <Button size="sm" variant="secondary" loading={busy(reject, c.id)} onClick={() => act(c.id, reject, 'Unpaid attempt cleared')}>Clear</Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </>
+  )
+}
+
+function ClaimFacts({ claim: c, verb }: { claim: RepaymentClaim; verb: string }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-ink">{c.member_name}</span>
+        <span className="font-mono text-xs text-muted-2">{c.member_no}</span>
       </div>
-    </Card>
+      <div className="text-xs text-muted-2">
+        {c.product_name} · {verb} <span className="font-mono text-ink-soft">{naira(c.amount)}</span> · outstanding {naira(c.outstanding)}
+        {c.note && ` · “${c.note}”`}
+        {c.channel === 'psp' && c.psp_reference && <> · <span className="font-mono">{c.psp_reference}</span></>}
+      </div>
+      {c.channel !== 'psp' && c.member_bank_account_no && (
+        <div className="text-xs text-muted-2">From: {c.member_bank_name} {c.member_bank_account_no}</div>
+      )}
+    </div>
   )
 }
 

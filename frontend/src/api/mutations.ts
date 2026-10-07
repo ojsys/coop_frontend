@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { DisbursementEvidence, Loan } from './types'
+import type { DisbursementEvidence, Loan, WalletTopUp } from './types'
 
 // Invalidate everything tenant-scoped after a write — simplest correct default
 // given how interconnected the ledger, contributions and dashboards are.
@@ -232,7 +232,7 @@ export function useVerifyLoanRepayment() {
   return useMutation({
     mutationFn: async (input: { loanId: number; reference: string }) => {
       const { data } = await api.post(`/me/loans/${input.loanId}/repay-verify/`, { reference: input.reference })
-      return data as Loan
+      return data as Loan & { payment_status?: string }
     },
     onSuccess: invalidate,
   })
@@ -950,7 +950,7 @@ export function useVerifyWalletTopUp() {
   return useMutation({
     mutationFn: async (reference: string) => {
       const { data } = await api.post('/wallet/verify/', { reference })
-      return data as { balance: string }
+      return data as { balance: string; topup: WalletTopUp }
     },
     onSuccess: invalidate,
   })

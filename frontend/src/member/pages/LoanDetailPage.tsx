@@ -13,6 +13,7 @@ import { QueryState } from '@/ui/QueryState'
 import { useToast } from '@/ui/toast'
 import { naira, shortDate } from '@/lib/format'
 import { openPaystackCheckout } from '@/lib/paystack'
+import { apiErrorMessage } from '@/lib/apiError'
 import type { Loan } from '@/api/types'
 
 const tone = (s: string) =>
@@ -238,10 +239,16 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const [amount, setAmount] = useState(next ? next.outstanding : '')
   const busy = initiate.isPending || verify.isPending
 
+  // The server says "received" only once Paystack confirms the full amount
+  // arrived; anything else comes back as an error with the reason.
   async function settle(reference: string) {
-    await verify.mutateAsync({ loanId: loan.id, reference })
-    toast('Repayment received — thank you!')
-    onClose()
+    try {
+      await verify.mutateAsync({ loanId: loan.id, reference })
+      toast('Repayment received — thank you!')
+      onClose()
+    } catch (err) {
+      toast(apiErrorMessage(err, 'We could not confirm this payment. If you were charged, it will reconcile shortly.'), 'error')
+    }
   }
 
   async function pay(e: React.FormEvent) {
