@@ -54,7 +54,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (_) => _RepaySheet(loan: loan),
+      builder: (_) => _RepaySheet(loan: loan, api: widget.api),
     );
     if (choice == null) return;
 
@@ -525,8 +525,9 @@ class _RepayChoice {
 }
 
 class _RepaySheet extends StatefulWidget {
-  const _RepaySheet({required this.loan});
+  const _RepaySheet({required this.loan, required this.api});
   final Loan loan;
+  final Api api;
 
   @override
   State<_RepaySheet> createState() => _RepaySheetState();
@@ -543,6 +544,34 @@ class _RepaySheetState extends State<_RepaySheet> {
         : (_next.amountDue - _next.amountPaid).toStringAsFixed(2),
   );
   final TextEditingController _note = TextEditingController();
+
+  // Paystack's fee is the member's to pay, on top of the repayment, so the
+  // society receives all of it. Quoted by the server (the same figure the
+  // checkout is opened with) and shown before they pay.
+  RepayQuote? _quote;
+  int _quoteSeq = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshQuote();
+  }
+
+  Future<void> _refreshQuote() async {
+    final seq = ++_quoteSeq;
+    final v = _amount.text.trim();
+    if ((double.tryParse(v) ?? 0) <= 0) {
+      setState(() => _quote = null);
+      return;
+    }
+    try {
+      final q = await widget.api.repayQuote(widget.loan.id, v);
+      // Only the latest keystroke's answer counts.
+      if (mounted && seq == _quoteSeq) setState(() => _quote = q);
+    } catch (_) {
+      if (mounted && seq == _quoteSeq) setState(() => _quote = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -575,6 +604,7 @@ class _RepaySheetState extends State<_RepaySheet> {
             TextField(
               controller: _amount,
               keyboardType: TextInputType.number,
+              onChanged: (_) => _refreshQuote(),
               decoration: const InputDecoration(
                 labelText: 'Amount (₦)',
                 border: OutlineInputBorder(),
@@ -589,6 +619,24 @@ class _RepaySheetState extends State<_RepaySheet> {
                   style: const TextStyle(color: AppColors.muted2, fontSize: 12),
                 ),
               ),
+            if (_quote != null && _quote!.fee > 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.sand,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    _quoteRow('Repayment', _quote!.amount),
+                    _quoteRow('Paystack fee', _quote!.fee),
+                    const Divider(height: 12),
+                    _quoteRow('You pay', _quote!.total, bold: true),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: () {
@@ -600,7 +648,9 @@ class _RepaySheetState extends State<_RepaySheet> {
                 minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.lock_outline, size: 18),
-              label: const Text('Pay with Paystack'),
+              label: Text(_quote == null
+                  ? 'Pay with Paystack'
+                  : 'Pay ${_kobo(_quote!.total)} with Paystack'),
             ),
             const SizedBox(height: 6),
             const Center(
@@ -746,5 +796,30 @@ class _RepaySheetState extends State<_RepaySheet> {
         ),
       ),
     ],
+  );
+}
+
+/// Money to the kobo — a checkout total must match what Paystack charges.
+String _kobo(double v) {
+  final cents = (v * 100).round();
+  final whole = cents ~/ 100;
+  final k = (cents % 100).toString().padLeft(2, '0');
+  final grouped = whole.toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+  return '₦$grouped.$k';
+}
+
+Widget _quoteRow(String label, double value, {bool bold = false}) {
+  final style = TextStyle(
+    color: bold ? AppColors.ink : AppColors.muted,
+    fontSize: 13,
+    fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+  );
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [Text(label, style: style), Text(_kobo(value), style: style)],
+    ),
   );
 }

@@ -672,6 +672,25 @@ export function usePendingRepayments() {
   })
 }
 
+/**
+ * What repaying ``amount`` online costs, Paystack's fee included — the member
+ * pays the fee on top so the society receives the whole repayment.
+ */
+export function useRepayQuote(loanId: number, amount: string) {
+  const coop = useCoopKey()
+  const valid = Number(amount) > 0
+  return useQuery({
+    queryKey: ['repay-quote', coop, loanId, amount],
+    enabled: valid,
+    queryFn: async () => {
+      const { data } = await api.get<{ amount: string; fee: string; total: string }>(
+        `/me/loans/${loanId}/repay-quote/`, { params: { amount } })
+      return data
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
 export function useMyLoan(id: number | undefined) {
   const coop = useCoopKey()
   return useQuery({
