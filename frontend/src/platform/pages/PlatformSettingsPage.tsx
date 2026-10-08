@@ -90,10 +90,13 @@ function PlansTab() {
                 <Badge tone={p.active ? 'green' : 'neutral'} dot>{p.active ? 'Active' : 'Off'}</Badge>
               </div>
               <div className="mt-3 flex items-end gap-1">
+                {p.price_is_from && <span className="pb-1 text-sm text-muted">From</span>}
                 <span className="font-display text-2xl font-semibold text-green tnum">{naira(p.price_monthly)}</span>
                 <span className="pb-1 text-sm text-muted">/mo</span>
               </div>
-              <div className="mt-1 text-xs text-muted-2">{p.min_members}–{p.max_members || '∞'} members</div>
+              <div className="mt-1 text-xs text-muted-2">
+                {p.price_annual ? `${naira(p.price_annual)}/yr` : 'Annual quoted'} · {p.band_label}
+              </div>
               <div className="mt-3 flex gap-2 border-t border-line pt-3">
                 <Button size="sm" variant="secondary" icon="edit" className="flex-1" onClick={() => setEditing(p)}>Edit</Button>
                 <Button size="sm" variant="ghost" icon="delete" onClick={() => remove.mutate(p.id)} />
@@ -115,6 +118,8 @@ function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void 
     name: isNew ? '' : plan.name,
     tier: String(isNew ? 'small' : plan.tier),
     price_monthly: isNew ? '' : plan.price_monthly,
+    price_annual: isNew ? '' : (plan.price_annual ?? ''),
+    price_is_from: isNew ? false : plan.price_is_from,
     min_members: isNew ? '0' : String(plan.min_members),
     max_members: isNew ? '0' : String(plan.max_members),
     description: isNew ? '' : plan.description,
@@ -126,6 +131,9 @@ function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void 
     e.preventDefault()
     const payload = {
       name: form.name, tier: form.tier, price_monthly: form.price_monthly,
+      // Blank means the annual price is quoted per society.
+      price_annual: form.price_annual === '' ? null : form.price_annual,
+      price_is_from: form.price_is_from,
       min_members: Number(form.min_members), max_members: Number(form.max_members),
       description: form.description, active: form.active,
     }
@@ -138,7 +146,7 @@ function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void 
   }
 
   return (
-    <Modal open onClose={onClose} title={isNew ? 'New plan' : `Edit ${plan.name}`} subtitle="Subscription pricing tier">
+    <Modal open onClose={onClose} title={isNew ? 'New plan' : `Edit ${plan.name}`} subtitle="A member band and its prices">
       <form onSubmit={submit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Name"><input required value={form.name} onChange={(e) => set('name', e.target.value)} className="input" /></Field>
@@ -148,11 +156,19 @@ function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void 
             ]} />
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Price (₦/mo)"><input required type="number" min="0" value={form.price_monthly} onChange={(e) => set('price_monthly', e.target.value)} className="input" /></Field>
-          <Field label="Min members"><input type="number" min="0" value={form.min_members} onChange={(e) => set('min_members', e.target.value)} className="input" /></Field>
-          <Field label="Max members"><input type="number" min="0" value={form.max_members} onChange={(e) => set('max_members', e.target.value)} className="input" /></Field>
+          <Field label="Price (₦/yr)" hint="Blank = quoted per society">
+            <input type="number" min="0" value={form.price_annual} onChange={(e) => set('price_annual', e.target.value)} className="input" />
+          </Field>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Min active members"><input type="number" min="0" value={form.min_members} onChange={(e) => set('min_members', e.target.value)} className="input" /></Field>
+          <Field label="Max active members" hint="0 = no upper limit"><input type="number" min="0" value={form.max_members} onChange={(e) => set('max_members', e.target.value)} className="input" /></Field>
+        </div>
+        <label className="flex items-center gap-2 text-[13px]">
+          <input type="checkbox" checked={form.price_is_from} onChange={(e) => set('price_is_from', e.target.checked)} className="accent-green" /> Show the monthly price as a starting price (“From …”)
+        </label>
         <Field label="Description"><input value={form.description} onChange={(e) => set('description', e.target.value)} className="input" /></Field>
         <label className="flex items-center gap-2 text-[13px]">
           <input type="checkbox" checked={form.active} onChange={(e) => set('active', e.target.checked)} className="accent-green" /> Active (offered to new cooperatives)

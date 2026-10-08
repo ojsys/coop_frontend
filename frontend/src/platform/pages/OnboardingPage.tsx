@@ -192,9 +192,9 @@ function StartOnboardingModal({ open, onClose }: { open: boolean; onClose: () =>
               value={form.tier}
               onChange={(e) => set('tier', e.target.value)}
               options={[
-                { value: 'small', label: 'Small (50–500)' },
-                { value: 'medium', label: 'Medium (500–5,000)' },
-                { value: 'large', label: 'Large / Institutional' },
+                { value: 'small', label: 'Small' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'large', label: 'Large' },
               ]}
             />
           </Field>

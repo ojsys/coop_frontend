@@ -21,10 +21,16 @@ export interface PublicPlan {
   tier: 'small' | 'medium' | 'large'
   tier_display: string
   price_monthly: string
+  /** Price for a year paid up front; null when quoted per society. */
+  price_annual: string | null
+  /** True when price_monthly is a starting price ("From …"). */
+  price_is_from: boolean
   currency: string
   min_members: number
-  /** 0 means "no upper bound" — rendered as ∞. */
+  /** 0 means "no upper bound". */
   max_members: number
+  /** The band as written everywhere, e.g. "50–250 members". */
+  band_label: string
   description: string
 }
 

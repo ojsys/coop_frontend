@@ -563,9 +563,12 @@ export interface Plan {
   tier: 'small' | 'medium' | 'large'
   tier_display: string
   price_monthly: string
+  price_annual: string | null
+  price_is_from: boolean
   currency: string
   min_members: number
   max_members: number
+  band_label: string
   description: string
   active: boolean
   subscriber_count: number
@@ -582,6 +585,12 @@ export interface Subscription {
   plan_name: string
   status: SubscriptionStatus
   status_display: string
+  billing_cycle: 'monthly' | 'annual'
+  /** Negotiated price per billing cycle; null = the plan's list price. */
+  price_override: string | null
+  /** What one invoice is for; null when an annual price still needs quoting. */
+  cycle_amount: string | null
+  monthly_value: string
   started_at: string | null
   current_period_start: string | null
   current_period_end: string | null

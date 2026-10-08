@@ -193,22 +193,21 @@ function ConfigTab({ coop }: { coop: Cooperative }) {
 
   const subscription = subscriptions.find((s) => s.cooperative === coop.id)
 
-  async function setPlan(planId: string, status?: string) {
+  async function save(patch: Record<string, unknown>) {
     try {
       if (subscription) {
-        await subs.update.mutateAsync({
-          id: subscription.id,
-          ...(planId ? { plan: Number(planId) } : {}),
-          ...(status ? { status } : {}),
-        })
-      } else if (planId) {
-        await subs.create.mutateAsync({ cooperative: coop.id, plan: Number(planId), status: 'active' })
+        await subs.update.mutateAsync({ id: subscription.id, ...patch })
+      } else if (patch.plan) {
+        await subs.create.mutateAsync({ cooperative: coop.id, status: 'active', ...patch })
       }
       toast('Subscription updated')
     } catch (err) {
       toast(apiErrorMessage(err, 'Could not update subscription'), 'error')
     }
   }
+  const setPlan = (planId: string) => planId && save({ plan: Number(planId) })
+  const [override, setOverride] = useState<string | null>(null)
+  const overrideValue = override ?? subscription?.price_override ?? ''
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -236,15 +235,52 @@ function ConfigTab({ coop }: { coop: Cooperative }) {
               onChange={(e) => setPlan(e.target.value)}
               options={[
                 { value: '', label: subscription ? '—' : 'No plan — select to assign' },
-                ...plans.map((p) => ({ value: String(p.id), label: `${p.name} · ${naira(p.price_monthly)}/mo` })),
+                ...plans.map((p) => ({ value: String(p.id), label: `${p.name} · ${p.band_label} · ${naira(p.price_monthly)}/mo` })),
               ]}
             />
           </Field>
           {subscription && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Billing">
+                <Select
+                  value={subscription.billing_cycle}
+                  onChange={(e) => save({ billing_cycle: e.target.value })}
+                  options={[
+                    { value: 'annual', label: 'Annual (2 months free)' },
+                    { value: 'monthly', label: 'Monthly' },
+                  ]}
+                />
+              </Field>
+              {/* Institutional is quoted per society; a negotiated figure is
+                  recorded here and is what every invoice then charges. */}
+              <Field label="Negotiated price (₦ per cycle)" hint="Blank = list price">
+                <input
+                  type="number"
+                  min="0"
+                  value={overrideValue}
+                  onChange={(e) => setOverride(e.target.value)}
+                  onBlur={() => {
+                    if (override === null) return
+                    save({ price_override: override === '' ? null : override })
+                    setOverride(null)
+                  }}
+                  className="input"
+                />
+              </Field>
+            </div>
+          )}
+          {subscription && (
+            <p className="text-xs text-muted-2">
+              {subscription.cycle_amount
+                ? `Invoiced ${naira(subscription.cycle_amount)} per ${subscription.billing_cycle === 'annual' ? 'year' : 'month'}.`
+                : 'No annual price yet — enter the quoted price, or billing will skip this society.'}
+            </p>
+          )}
+          {subscription && (
             <Field label="Status">
               <Select
                 value={subscription.status}
-                onChange={(e) => setPlan('', e.target.value)}
+                onChange={(e) => save({ status: e.target.value })}
                 options={[
                   { value: 'trial', label: 'Trial' },
                   { value: 'active', label: 'Active' },
@@ -323,9 +359,9 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
               value={form.tier}
               onChange={(e) => set('tier', e.target.value)}
               options={[
-                { value: 'small', label: 'Small (50–500)' },
-                { value: 'medium', label: 'Medium (500–5,000)' },
-                { value: 'large', label: 'Large / Institutional' },
+                { value: 'small', label: 'Small' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'large', label: 'Large' },
               ]}
             />
           </Field>

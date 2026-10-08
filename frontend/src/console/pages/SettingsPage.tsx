@@ -49,7 +49,7 @@ const PERMISSIONS: { slug: string; label: string; privileged?: boolean }[] = [
 ]
 
 const TIER_LABEL: Record<string, string> = {
-  small: 'Small', medium: 'Medium', large: 'Large / Institutional',
+  small: 'Small', medium: 'Medium', large: 'Large',
 }
 
 export function SettingsPage() {
@@ -395,9 +395,9 @@ function ProfileModal({ open, onClose, coop }: { open: boolean; onClose: () => v
               value={form.tier}
               onChange={(e) => set('tier', e.target.value)}
               options={[
-                { value: 'small', label: 'Small (50–500)' },
-                { value: 'medium', label: 'Medium (500–5,000)' },
-                { value: 'large', label: 'Large / Institutional' },
+                { value: 'small', label: 'Small' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'large', label: 'Large' },
               ]}
             />
           </Field>

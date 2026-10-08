@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LogoMark } from '@/ui/Logo'
 import { Icon } from '@/ui/Icon'
@@ -10,6 +10,7 @@ import {
   usePublicBranding,
   usePublicPlans,
   usePublicSiteContent,
+  type PublicPlan,
 } from '@/api/public'
 
 // Default photography, bundled rather than uploaded. Each one is overridden
@@ -59,9 +60,9 @@ const FALLBACK = {
   featuresTitle: 'Everything a cooperative runs on',
   showcaseTitle: 'A closer look at the day-to-day',
   stepsTitle: 'How it works',
-  pricingTitle: 'Pricing that follows your size',
+  pricingTitle: 'Pricing by member band',
   pricingIntro:
-    'A monthly subscription per cooperative — not a cut of your members’ money.',
+    'One subscription per cooperative, set by how many active members you have — never a cut of your members’ money. Pay annually and get two months free.',
   pricingFallback:
     'Pricing depends on your cooperative’s size and how much history needs migrating.',
   ctaTitle: 'Ready to bring your cooperative on board?',
@@ -232,6 +233,9 @@ export function LandingPage() {
   // Policy pages an admin has published, for the footer. Absent is normal.
   const { data: legalDocs } = useLegalIndex()
   const plans = usePublicPlans()
+  // Annual first, as the audit recommends: it is the standard offer, and
+  // monthly stays available at a higher effective cost.
+  const [cycle, setCycle] = useState<'annual' | 'monthly'>('annual')
 
   const productName = branding?.name || 'CooperativeOS'
   const supportEmail = branding?.support_email || ''
@@ -643,37 +647,39 @@ export function LandingPage() {
           )}
 
           {plans.data && plans.data.length > 0 && (
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {plans.data.map((p) => (
-                <div key={p.id} className="flex flex-col rounded-[15px] border border-line bg-card p-6">
-                  <div className="font-display text-[17px] font-semibold text-ink">{p.name}</div>
-                  <div className="text-[13px] text-muted">{p.tier_display}</div>
-
-                  <div className="mt-4 flex items-end gap-1.5">
-                    <span className="font-display text-3xl font-semibold text-green tnum">
-                      {money(p.price_monthly, p.currency)}
-                    </span>
-                    <span className="pb-1 text-sm text-muted">/month</span>
-                  </div>
-
-                  <div className="mt-1 text-xs text-muted-2">
-                    {p.min_members.toLocaleString()}–
-                    {p.max_members ? p.max_members.toLocaleString() : '∞'} members
-                  </div>
-
-                  {p.description && (
-                    <p className="mt-3 text-sm leading-relaxed text-muted">{p.description}</p>
-                  )}
-
-                  <Link
-                    to="/signup"
-                    className="mt-5 inline-flex items-center justify-center gap-2 rounded-md border border-line px-4 py-2.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
+            <>
+              <div
+                role="tablist"
+                aria-label="Billing cycle"
+                className="mt-8 inline-flex rounded-full border border-line bg-card p-1"
+              >
+                {(['annual', 'monthly'] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    role="tab"
+                    aria-selected={cycle === c}
+                    onClick={() => setCycle(c)}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                      cycle === c ? 'bg-green text-paper' : 'text-muted hover:text-ink'
+                    }`}
                   >
-                    Get started
-                  </Link>
-                </div>
-              ))}
-            </div>
+                    {c === 'annual' ? 'Annual · 2 months free' : 'Monthly'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                {plans.data.map((p) => (
+                  <PlanCard key={p.id} plan={p} cycle={cycle} supportEmail={supportEmail} />
+                ))}
+              </div>
+
+              <p className="mt-6 max-w-2xl text-xs leading-relaxed text-muted-2">
+                Your plan follows your active member count. Prices are per
+                cooperative, in naira.
+              </p>
+            </>
           )}
         </div>
       </section>
@@ -795,6 +801,101 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
+    </div>
+  )
+}
+
+
+/**
+ * One plan, quoted for the chosen billing cycle.
+ *
+ * Every number comes from the plan record — the band, both prices and whether
+ * the monthly figure is a starting price — so an agent's price card, this page
+ * and the invoice cannot disagree. A plan without an annual list price
+ * (Institutional) is quoted per society rather than shown a guessed figure.
+ */
+function PlanCard({
+  plan: p,
+  cycle,
+  supportEmail,
+}: {
+  plan: PublicPlan
+  cycle: 'annual' | 'monthly'
+  supportEmail: string
+}) {
+  const monthly = Number(p.price_monthly)
+  const annual = p.price_annual == null ? null : Number(p.price_annual)
+  const quoted = annual == null
+  const showAnnual = cycle === 'annual' && !quoted
+  const saving = annual == null ? 0 : monthly * 12 - annual
+  // What a member's share comes to at the top of the band — the per-member
+  // value story the audit asks for. Only meaningful when the band has a top.
+  const perMonth = showAnnual && annual != null ? annual / 12 : monthly
+  const perMember = p.max_members ? perMonth / p.max_members : null
+
+  return (
+    <div className="flex flex-col rounded-[15px] border border-line bg-card p-6">
+      <div className="font-display text-[17px] font-semibold text-ink">{p.name}</div>
+      <div className="text-[13px] font-medium text-green">{p.band_label}</div>
+
+      {showAnnual ? (
+        <>
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
+            <span className="font-display text-[28px] font-semibold leading-tight text-green tnum">
+              {money(annual, p.currency)}
+            </span>
+            <span className="text-sm text-muted">/year</span>
+          </div>
+          <div className="mt-1 text-xs text-muted-2">
+            {saving > 0 && <>Save {money(saving, p.currency)} · </>}
+            or {money(monthly, p.currency)} monthly
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
+            {p.price_is_from && <span className="text-sm text-muted">From</span>}
+            <span className="font-display text-[28px] font-semibold leading-tight text-green tnum">
+              {money(monthly, p.currency)}
+            </span>
+            <span className="text-sm text-muted">/month</span>
+          </div>
+          <div className="mt-1 text-xs text-muted-2">
+            {quoted
+              ? 'Annual price quoted for your society'
+              : <>or {money(annual, p.currency)} a year — 2 months free</>}
+          </div>
+        </>
+      )}
+
+      {perMember != null && (
+        <div className="mt-3 text-xs text-muted">
+          About {money(Math.round(perMember * 100) / 100, p.currency)} per member a month at{' '}
+          {p.max_members.toLocaleString()} members
+        </div>
+      )}
+
+      {p.description && (
+        <p className="mt-3 text-sm leading-relaxed text-muted">{p.description}</p>
+      )}
+
+      {/* Pushes the button to the card's foot so a row of cards lines up. */}
+      <div className="flex-1" />
+      {quoted && supportEmail ? (
+        <a
+          href={`mailto:${supportEmail}?subject=${encodeURIComponent(`${p.name} plan quote`)}`}
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-md border border-line px-4 py-2.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
+        >
+          Talk to us
+        </a>
+      ) : (
+        <Link
+          to="/signup"
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-md border border-line px-4 py-2.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
+        >
+          Get started
+        </Link>
+      )}
     </div>
   )
 }
