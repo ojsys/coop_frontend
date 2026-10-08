@@ -122,3 +122,31 @@ Widget emptyState(String title, String hint) => ListView(
         ),
       ],
     );
+
+/// Naira to the kobo — a checkout total must match what Paystack charges.
+String koboText(double v) {
+  final cents = (v * 100).round();
+  final whole = cents ~/ 100;
+  final k = (cents % 100).toString().padLeft(2, '0');
+  final grouped = whole.toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+  return '₦$grouped.$k';
+}
+
+/// One line of a fee breakdown: "Paystack fee ……… ₦520.31".
+class FeeQuoteRow {
+  static Widget row(String label, double value, {bool bold = false}) {
+    final style = TextStyle(
+      color: bold ? AppColors.ink : AppColors.muted,
+      fontSize: 13,
+      fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [Text(label, style: style), Text(koboText(value), style: style)],
+      ),
+    );
+  }
+}

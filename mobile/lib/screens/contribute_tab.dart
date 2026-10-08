@@ -26,6 +26,27 @@ class _ContributeTabState extends State<ContributeTab> {
   // replace this future.
   late Future<List<ContributionType>> _future = widget.api.contributionTypes();
   final _amount = TextEditingController();
+
+  // Paystack's fee is the member's to pay, on top of the contribution, so the
+  // society receives all of it. Quoted by the server — the same figure the
+  // checkout charges — and shown before they pay.
+  FeeQuote? _quote;
+  int _quoteSeq = 0;
+
+  Future<void> _refreshQuote() async {
+    final seq = ++_quoteSeq;
+    final v = _amount.text.trim();
+    if ((double.tryParse(v) ?? 0) <= 0) {
+      if (mounted) setState(() => _quote = null);
+      return;
+    }
+    try {
+      final q = await widget.api.feeQuote(v);
+      if (mounted && seq == _quoteSeq) setState(() => _quote = q);
+    } catch (_) {
+      if (mounted && seq == _quoteSeq) setState(() => _quote = null);
+    }
+  }
   int? _typeId;
   String _gateway = 'paystack';
   bool _paying = false;
@@ -157,7 +178,10 @@ class _ContributeTabState extends State<ContributeTab> {
               TextField(
                 controller: _amount,
                 keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  setState(() {});
+                  _refreshQuote();
+                },
                 style: const TextStyle(
                     fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.ink),
                 decoration: InputDecoration(
@@ -229,6 +253,24 @@ class _ContributeTabState extends State<ContributeTab> {
                   ),
                 );
               }),
+              if (_quote != null && _quote!.fee > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.sand,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      FeeQuoteRow.row('Contribution', _quote!.amount),
+                      FeeQuoteRow.row('Paystack fee', _quote!.fee),
+                      const Divider(height: 12),
+                      FeeQuoteRow.row('You pay', _quote!.total, bold: true),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: (_typeId == null || _amount.text.isEmpty || _paying)
@@ -241,8 +283,10 @@ class _ContributeTabState extends State<ContributeTab> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.paper))
                     : const Icon(Icons.lock_outline),
-                label: Text(
-                    _amount.text.isNotEmpty && double.tryParse(_amount.text) != null
+                label: Text(_quote != null
+                    ? 'Pay ${koboText(_quote!.total)} securely'
+                    : _amount.text.isNotEmpty &&
+                            double.tryParse(_amount.text) != null
                         ? 'Pay ${naira(double.parse(_amount.text))} securely'
                         : 'Pay securely'),
               ),
@@ -277,6 +321,7 @@ class _ContributeTabState extends State<ContributeTab> {
           _typeId = t.id;
           if (t.expectedAmount != null) {
             _amount.text = t.expectedAmount!.toStringAsFixed(0);
+            _refreshQuote();
           }
         }),
         borderRadius: BorderRadius.circular(14),

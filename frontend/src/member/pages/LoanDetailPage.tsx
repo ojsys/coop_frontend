@@ -11,7 +11,7 @@ import { Modal } from '@/ui/Modal'
 import { Field } from '@/ui/Field'
 import { QueryState } from '@/ui/QueryState'
 import { useToast } from '@/ui/toast'
-import { naira, shortDate } from '@/lib/format'
+import { naira, nairaKobo, shortDate } from '@/lib/format'
 import { openPaystackCheckout } from '@/lib/paystack'
 import { apiErrorMessage } from '@/lib/apiError'
 import type { Loan } from '@/api/types'
@@ -303,22 +303,17 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
             the society receives all of it. Shown before they pay. */}
         {quote.data && Number(quote.data.fee) > 0 && (
           <div className="rounded-xl bg-sand-deep px-3 py-2.5 text-xs text-muted">
-            <div className="flex justify-between"><span>Repayment</span><span className="font-mono">{kobo(quote.data.amount)}</span></div>
-            <div className="flex justify-between"><span>Paystack fee</span><span className="font-mono">{kobo(quote.data.fee)}</span></div>
-            <div className="mt-1 flex justify-between border-t border-line pt-1 font-semibold text-ink"><span>You pay</span><span className="font-mono">{kobo(quote.data.total)}</span></div>
+            <div className="flex justify-between"><span>Repayment</span><span className="font-mono">{nairaKobo(quote.data.amount)}</span></div>
+            <div className="flex justify-between"><span>Paystack fee</span><span className="font-mono">{nairaKobo(quote.data.fee)}</span></div>
+            <div className="mt-1 flex justify-between border-t border-line pt-1 font-semibold text-ink"><span>You pay</span><span className="font-mono">{nairaKobo(quote.data.total)}</span></div>
           </div>
         )}
         <button type="submit" disabled={busy}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-green py-3.5 font-semibold text-paper transition hover:bg-green-hover disabled:opacity-50">
-          <Icon name="lock" size={18} /> Pay {quote.data ? kobo(quote.data.total) : amount ? naira(amount) : ''} with Paystack
+          <Icon name="lock" size={18} /> Pay {quote.data ? nairaKobo(quote.data.total) : amount ? naira(amount) : ''} with Paystack
         </button>
         <p className="text-center text-xs text-muted-2">Card, bank transfer & USSD · settles to your society</p>
       </form>
     </Modal>
   )
-}
-
-/** Money to the kobo — a checkout total must match what Paystack charges. */
-function kobo(value: string | number): string {
-  return `₦${Number(value).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }

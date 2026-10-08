@@ -673,6 +673,24 @@ export function usePendingRepayments() {
 }
 
 /**
+ * What paying ``amount`` online costs — Paystack's fee is the member's to pay,
+ * on top, so the society receives the whole amount. Used for contributions.
+ */
+export function useFeeQuote(amount: string) {
+  const valid = Number(amount) > 0
+  return useQuery({
+    queryKey: ['fee-quote', amount],
+    enabled: valid,
+    queryFn: async () => {
+      const { data } = await api.get<{ amount: string; fee: string; total: string }>(
+        '/fee-quote/', { params: { amount } })
+      return data
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
  * What repaying ``amount`` online costs, Paystack's fee included — the member
  * pays the fee on top so the society receives the whole repayment.
  */

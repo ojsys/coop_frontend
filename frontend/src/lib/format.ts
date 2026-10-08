@@ -18,6 +18,12 @@ export function naira(value: string | number | null | undefined, opts?: { compac
   return `₦${new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 }).format(n)}`
 }
 
+/** Naira to the kobo — for a checkout total, which must match what is charged. */
+export function nairaKobo(value: string | number | null | undefined): string {
+  const n = typeof value === 'string' ? Number(value) : (value ?? 0)
+  return `₦${(Number.isNaN(n) ? 0 : n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 /**
  * Format an amount in the currency it is actually denominated in.
  *

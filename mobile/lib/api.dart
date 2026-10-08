@@ -403,9 +403,14 @@ class Api {
 
   /// What repaying [amount] online costs, Paystack's fee included: the
   /// member pays the fee on top so the society receives the whole repayment.
-  Future<RepayQuote> repayQuote(int loanId, String amount) async =>
-      RepayQuote.fromJson(await _get(
+  Future<FeeQuote> repayQuote(int loanId, String amount) async =>
+      FeeQuote.fromJson(await _get(
           '/me/loans/$loanId/repay-quote/?amount=${Uri.encodeQueryComponent(amount)}'));
+
+  /// What paying [amount] online costs (contributions): the member pays
+  /// Paystack's fee on top so the society receives the whole amount.
+  Future<FeeQuote> feeQuote(String amount) async => FeeQuote.fromJson(
+      await _get('/fee-quote/?amount=${Uri.encodeQueryComponent(amount)}'));
 
   /// Confirms an online repayment after checkout — posts it to the ledger.
   /// Returns the refreshed loan.
@@ -1030,14 +1035,15 @@ class Announcement {
       );
 }
 
-/// The cost of an online repayment: the repayment, Paystack's fee, the total.
-class RepayQuote {
-  RepayQuote({required this.amount, required this.fee, required this.total});
+/// The cost of paying online: the amount, Paystack's fee (the member's to
+/// pay), and the total charged at checkout.
+class FeeQuote {
+  FeeQuote({required this.amount, required this.fee, required this.total});
   final double amount;
   final double fee;
   final double total;
 
-  factory RepayQuote.fromJson(Map<String, dynamic> j) => RepayQuote(
+  factory FeeQuote.fromJson(Map<String, dynamic> j) => FeeQuote(
         amount: double.tryParse('${j['amount']}') ?? 0,
         fee: double.tryParse('${j['fee']}') ?? 0,
         total: double.tryParse('${j['total']}') ?? 0,

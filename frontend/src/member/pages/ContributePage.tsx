@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-import { useContributionTypes } from '@/api/hooks'
+import { useContributionTypes, useFeeQuote } from '@/api/hooks'
 import { useInitiateContribution } from '@/api/mutations'
 import { outbox } from '@/api/outbox'
 import { useToast } from '@/ui/toast'
 import { MemberHeader } from '../MemberShell'
 import { Icon } from '@/ui/Icon'
 import { EmptyState, ErrorState } from '@/ui/EmptyState'
-import { naira } from '@/lib/format'
+import { naira, nairaKobo } from '@/lib/format'
 import { openPaystackCheckout } from '@/lib/paystack'
 
 // Payment gateways. Members pick the provider; the actual method (card, bank
@@ -32,6 +32,7 @@ export function ContributePage() {
 
   const [typeId, setTypeId] = useState<number | null>(null)
   const [amount, setAmount] = useState('')
+  const quote = useFeeQuote(amount)
   const [gateway, setGateway] = useState('paystack')
 
   const selectedType = types.find((t) => t.id === typeId)
@@ -234,13 +235,23 @@ export function ContributePage() {
           </div>
         </div>
 
+        {/* Paystack's fee is the member's to pay, on top, so the society
+            receives the whole contribution. Shown before they pay. */}
+        {quote.data && Number(quote.data.fee) > 0 && (
+          <div className="rounded-xl bg-sand-deep px-3.5 py-3 text-xs text-muted">
+            <div className="flex justify-between"><span>Contribution</span><span className="font-mono">{nairaKobo(quote.data.amount)}</span></div>
+            <div className="flex justify-between"><span>Paystack fee</span><span className="font-mono">{nairaKobo(quote.data.fee)}</span></div>
+            <div className="mt-1 flex justify-between border-t border-line pt-1 font-semibold text-ink"><span>You pay</span><span className="font-mono">{nairaKobo(quote.data.total)}</span></div>
+          </div>
+        )}
+
         <button
           onClick={pay}
           disabled={!typeId || !amount || initiate.isPending}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-green py-3.5 font-semibold text-paper transition hover:bg-green-hover disabled:opacity-50"
         >
           <Icon name="lock" size={18} />
-          Pay {amount ? naira(amount) : ''} securely
+          Pay {quote.data ? nairaKobo(quote.data.total) : amount ? naira(amount) : ''} securely
         </button>
         <p className="flex items-center justify-center gap-1.5 pb-2 text-center text-xs text-muted-2">
           <Icon name="verified_user" size={14} />

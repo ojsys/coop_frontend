@@ -548,7 +548,7 @@ class _RepaySheetState extends State<_RepaySheet> {
   // Paystack's fee is the member's to pay, on top of the repayment, so the
   // society receives all of it. Quoted by the server (the same figure the
   // checkout is opened with) and shown before they pay.
-  RepayQuote? _quote;
+  FeeQuote? _quote;
   int _quoteSeq = 0;
 
   @override
@@ -629,10 +629,10 @@ class _RepaySheetState extends State<_RepaySheet> {
                 ),
                 child: Column(
                   children: [
-                    _quoteRow('Repayment', _quote!.amount),
-                    _quoteRow('Paystack fee', _quote!.fee),
+                    FeeQuoteRow.row('Repayment', _quote!.amount),
+                    FeeQuoteRow.row('Paystack fee', _quote!.fee),
                     const Divider(height: 12),
-                    _quoteRow('You pay', _quote!.total, bold: true),
+                    FeeQuoteRow.row('You pay', _quote!.total, bold: true),
                   ],
                 ),
               ),
@@ -650,7 +650,7 @@ class _RepaySheetState extends State<_RepaySheet> {
               icon: const Icon(Icons.lock_outline, size: 18),
               label: Text(_quote == null
                   ? 'Pay with Paystack'
-                  : 'Pay ${_kobo(_quote!.total)} with Paystack'),
+                  : 'Pay ${koboText(_quote!.total)} with Paystack'),
             ),
             const SizedBox(height: 6),
             const Center(
@@ -796,30 +796,5 @@ class _RepaySheetState extends State<_RepaySheet> {
         ),
       ),
     ],
-  );
-}
-
-/// Money to the kobo — a checkout total must match what Paystack charges.
-String _kobo(double v) {
-  final cents = (v * 100).round();
-  final whole = cents ~/ 100;
-  final k = (cents % 100).toString().padLeft(2, '0');
-  final grouped = whole.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
-  return '₦$grouped.$k';
-}
-
-Widget _quoteRow(String label, double value, {bool bold = false}) {
-  final style = TextStyle(
-    color: bold ? AppColors.ink : AppColors.muted,
-    fontSize: 13,
-    fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-  );
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [Text(label, style: style), Text(_kobo(value), style: style)],
-    ),
   );
 }
