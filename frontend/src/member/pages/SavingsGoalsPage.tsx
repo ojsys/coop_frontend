@@ -9,6 +9,7 @@ import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
 import { QueryState } from '@/ui/QueryState'
 import { useToast } from '@/ui/toast'
+import { useHasFeature } from '@/auth/planFeatures'
 import { apiErrorMessage } from '@/lib/apiError'
 import { naira } from '@/lib/format'
 import { BackLink, Empty } from './LoansPage'
@@ -18,13 +19,23 @@ export function SavingsGoalsPage() {
   const { data: goals = [], isLoading, isError } = useMySavingsGoals()
   const del = useDeleteMyGoal()
   const [open, setOpen] = useState(false)
+  // Goals already set stay visible; starting or removing one needs savings
+  // plans in the society's subscription.
+  const canEdit = useHasFeature('savings_plans')
 
   return (
     <div>
       <MemberHeader title="Savings goals" back={<BackLink onClick={() => navigate('/app')} />} />
 
       <div className="px-5 md:px-0">
-        <Button size="sm" icon="add" className="mb-4 w-full" onClick={() => setOpen(true)}>New goal</Button>
+        {canEdit ? (
+          <Button size="sm" icon="add" className="mb-4 w-full" onClick={() => setOpen(true)}>New goal</Button>
+        ) : (
+          <p className="mb-4 rounded-xl bg-sand-deep px-3 py-2.5 text-xs text-muted">
+            Your society has not turned on new savings goals. Any goals you set
+            earlier are shown below.
+          </p>
+        )}
 
         <QueryState isLoading={isLoading} isError={isError}>
           {goals.length === 0 ? (
@@ -38,9 +49,11 @@ export function SavingsGoalsPage() {
                       <div className="font-display text-[15px] font-semibold text-ink">{g.name}</div>
                       <div className="text-xs text-muted-2">{g.product_name}</div>
                     </div>
-                    <button onClick={() => del.mutate(g.id)} className="text-muted-2 transition hover:text-danger" title="Remove">
-                      <Icon name="close" size={16} />
-                    </button>
+                    {canEdit && (
+                      <button onClick={() => del.mutate(g.id)} className="text-muted-2 transition hover:text-danger" title="Remove">
+                        <Icon name="close" size={16} />
+                      </button>
+                    )}
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-sand-deep">
                     <div className="h-full rounded-full bg-green-bright" style={{ width: `${g.progress_pct}%` }} />

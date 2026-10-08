@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useWallet } from '@/api/hooks'
 import { useFundWallet, useVerifyWalletTopUp, useWithdrawWallet } from '@/api/mutations'
 import { useAuth } from '@/auth/AuthContext'
+import { useHasFeature } from '@/auth/planFeatures'
+import { PlanFeatureNote } from '@/auth/PlanFeatureNote'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { PageHeader } from '@/ui/PageHeader'
@@ -68,6 +70,7 @@ function WalletCard({ canManage }: { canManage: boolean }) {
   const verify = useVerifyWalletTopUp()
   const withdraw = useWithdrawWallet()
   const toast = useToast()
+  const canFund = useHasFeature('electronic_payouts')
   const [tab, setTab] = useState<'funded' | 'attempts'>('funded')
   const [open, setOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
@@ -150,9 +153,11 @@ function WalletCard({ canManage }: { canManage: boolean }) {
         action={
           canManage ? (
             <div className="flex gap-2">
-              <Button size="sm" icon="add" onClick={() => setOpen(true)}>
-                Fund wallet
-              </Button>
+              {canFund && (
+                <Button size="sm" icon="add" onClick={() => setOpen(true)}>
+                  Fund wallet
+                </Button>
+              )}
               {/* The float is the society's own money; it must be able to take
                   it back. Only ever pays the society's own vetted account. */}
               <Button
@@ -175,6 +180,10 @@ function WalletCard({ canManage }: { canManage: boolean }) {
           {naira(wallet.data?.balance ?? 0)}
         </div>
       </div>
+
+      {/* Funding follows the plan; withdrawing never does — it is the
+          society's own money, so the button above stays either way. */}
+      {!canFund && <PlanFeatureNote feature="electronic_payouts" className="mb-3" />}
 
       {/* Clicking "Fund wallet" records an attempt before any money moves,
           so the history leads with funding that actually arrived. The rest

@@ -6,8 +6,12 @@ import '../widgets.dart';
 
 /// A member's own savings goals with progress, plus creating a new goal.
 class SavingsGoalsScreen extends StatefulWidget {
-  const SavingsGoalsScreen({super.key, required this.api});
+  const SavingsGoalsScreen({super.key, required this.api, this.canEdit = true});
   final Api api;
+
+  /// Whether the society's plan lets members start or remove goals. Goals
+  /// already set are shown either way.
+  final bool canEdit;
 
   @override
   State<SavingsGoalsScreen> createState() => _SavingsGoalsScreenState();
@@ -42,13 +46,15 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
     return Scaffold(
       appBar: AppBar(
           title: const Text('Savings goals'), backgroundColor: AppColors.card),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _add,
-        backgroundColor: AppColors.green,
-        foregroundColor: AppColors.paper,
-        icon: const Icon(Icons.add),
-        label: const Text('New goal'),
-      ),
+      floatingActionButton: widget.canEdit
+          ? FloatingActionButton.extended(
+              onPressed: _add,
+              backgroundColor: AppColors.green,
+              foregroundColor: AppColors.paper,
+              icon: const Icon(Icons.add),
+              label: const Text('New goal'),
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<List<SavingsGoal>>(
@@ -63,18 +69,22 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
             }
             final goals = snap.data!;
             if (goals.isEmpty) {
-              return ListView(children: const [
-                SizedBox(height: 120),
-                Icon(Icons.flag_outlined, color: AppColors.muted2, size: 44),
-                SizedBox(height: 12),
-                Center(
+              return ListView(children: [
+                const SizedBox(height: 120),
+                const Icon(Icons.flag_outlined,
+                    color: AppColors.muted2, size: 44),
+                const SizedBox(height: 12),
+                const Center(
                     child: Text('No savings goals yet.',
                         style: TextStyle(color: AppColors.muted))),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Center(
-                    child: Text('Set a target to save towards.',
-                        style:
-                            TextStyle(color: AppColors.muted2, fontSize: 13))),
+                    child: Text(
+                        widget.canEdit
+                            ? 'Set a target to save towards.'
+                            : 'Your society has not turned on savings goals.',
+                        style: const TextStyle(
+                            color: AppColors.muted2, fontSize: 13))),
               ]);
             }
             return ListView(
@@ -101,11 +111,12 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                           fontSize: 15,
                           fontWeight: FontWeight.w700)),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close,
-                      size: 18, color: AppColors.muted2),
-                  onPressed: () => _delete(g),
-                ),
+                if (widget.canEdit)
+                  IconButton(
+                    icon: const Icon(Icons.close,
+                        size: 18, color: AppColors.muted2),
+                    onPressed: () => _delete(g),
+                  ),
               ],
             ),
             Text(g.productName,

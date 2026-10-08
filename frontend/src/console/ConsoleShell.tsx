@@ -5,7 +5,7 @@ import { CoopSwitcher } from './CoopSwitcher'
 import { useAuth } from '@/auth/AuthContext'
 import { useCooperative, useDashboard } from '@/api/hooks'
 import { usePendingJoinRequestCount } from '@/api/signup'
-import { num } from '@/lib/format'
+import { num, shortDate } from '@/lib/format'
 
 const NAV: NavItem[] = [
   { to: '/console', label: 'Dashboard', icon: 'dashboard', end: true },
@@ -31,7 +31,10 @@ const NAV: NavItem[] = [
 ]
 
 function PlanCard() {
-  const { activeCooperativeId } = useAuth()
+  const { activeCooperativeId, activeMembership } = useAuth()
+  // The subscription plan, not the size label: the label carries no price and
+  // no features, and showing it here read as though it were the plan.
+  const plan = activeMembership?.plan
   // These were hardcoded to the demo seed's figures (1,240 of 5,000), so every
   // real cooperative was shown a membership count it did not have. The count is
   // computed server-side; the cap and tier are the cooperative's own plan.
@@ -45,8 +48,13 @@ function PlanCard() {
   return (
     <GreenCard>
       <div className="text-[11px] font-semibold text-green-200">
-        {coop?.tier ? `PLAN · ${coop.tier.toUpperCase()}` : 'PLAN'}
+        {plan?.name ? `PLAN · ${plan.name.toUpperCase()}` : 'PLAN'}
       </div>
+      {plan?.grace_until && (
+        <div className="mt-0.5 text-[11px] text-green-100">
+          Every feature included until {shortDate(plan.grace_until)}
+        </div>
+      )}
       <div className="mt-1 text-[13px] text-paper">
         {known ? `${num(used)} / ${num(cap)} members used` : 'Loading…'}
       </div>

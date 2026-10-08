@@ -19,6 +19,25 @@ export interface MembershipSummary {
   is_privileged: boolean
   status: MemberStatus
   share_capital: string
+  /** The society's plan. Absent from servers older than plan features. */
+  plan?: MembershipPlan
+}
+
+/** Keys of the features plans differ by (see core/entitlements.py). */
+export type PlanFeature =
+  | 'electronic_payouts'
+  | 'dividends'
+  | 'savings_plans'
+  | 'custom_branding'
+  | 'custom_domain'
+
+export interface MembershipPlan {
+  /** Null when the society is not on a subscription yet. */
+  name: string | null
+  /** What the society may use right now (everything during grace). */
+  features: PlanFeature[]
+  /** While set, every feature is included regardless of plan. */
+  grace_until: string | null
 }
 
 export interface CurrentUser {
@@ -570,6 +589,9 @@ export interface Plan {
   max_members: number
   band_label: string
   description: string
+  features: PlanFeature[]
+  /** Unenforced promises for the price card, one per line. */
+  extras: string
   active: boolean
   subscriber_count: number
   created_at: string
@@ -591,6 +613,7 @@ export interface Subscription {
   /** What one invoice is for; null when an annual price still needs quoting. */
   cycle_amount: string | null
   monthly_value: string
+  features_grace_until: string | null
   started_at: string | null
   current_period_start: string | null
   current_period_end: string | null

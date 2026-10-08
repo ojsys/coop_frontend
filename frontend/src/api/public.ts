@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
-import type { PublicReference, SiteContent, SubdivisionRegion } from './types'
+import type { PlanFeature, PublicReference, SiteContent, SubdivisionRegion } from './types'
 
 /** The platform's own brand — never a cooperative's. Anonymous visitors have
  *  no tenant context, so the public site always wears the platform identity. */
@@ -32,6 +32,27 @@ export interface PublicPlan {
   /** The band as written everywhere, e.g. "50–250 members". */
   band_label: string
   description: string
+  /** Gated features this plan includes, labelled, in catalogue order. */
+  features: { key: PlanFeature; label: string }[]
+  /** Service promises (support, training…), one per entry. */
+  extras: string[]
+}
+
+/** `GET /public/plan-catalogue/` — what every plan has, and what differs. */
+export interface PlanCatalogue {
+  core: string[]
+  features: { key: PlanFeature; label: string; description: string }[]
+}
+
+export function usePlanCatalogue() {
+  return useQuery({
+    queryKey: ['plan-catalogue'],
+    queryFn: async () => {
+      const { data } = await api.get<PlanCatalogue>('/public/plan-catalogue/')
+      return data
+    },
+    staleTime: 30 * 60_000,
+  })
 }
 
 export function usePublicBranding() {

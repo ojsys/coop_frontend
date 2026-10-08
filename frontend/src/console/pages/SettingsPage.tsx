@@ -30,6 +30,8 @@ import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
 import { BankSelect } from '@/ui/BankSelect'
 import { BrandAssetField } from '@/ui/BrandAssetField'
+import { useHasFeature } from '@/auth/planFeatures'
+import { PlanFeatureNote } from '@/auth/PlanFeatureNote'
 import { apiErrorMessage } from '@/lib/apiError'
 import { LocationSelect, CoopTypeSelect } from '@/ui/StateLGASelect'
 import { naira } from '@/lib/format'
@@ -53,6 +55,7 @@ const TIER_LABEL: Record<string, string> = {
 }
 
 export function SettingsPage() {
+  const canBrand = useHasFeature('custom_branding')
   const { activeMembership, activeCooperativeId } = useAuth()
   // The console is open to any office-holder (a Chairperson sits on it for
   // approvals), but roles and the society profile are writable only by a
@@ -163,7 +166,9 @@ export function SettingsPage() {
             title="Branding"
             subtitle="Shown in the member app and on statements"
           />
-          {coop.data ? (
+          {!canBrand ? (
+            <PlanFeatureNote feature="custom_branding" />
+          ) : coop.data ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <BrandAssetField
                 label="Logo"
@@ -334,6 +339,7 @@ export function SettingsPage() {
 }
 
 function ProfileModal({ open, onClose, coop }: { open: boolean; onClose: () => void; coop: Cooperative }) {
+  const canBrand = useHasFeature('custom_branding')
   const update = useUpdateCooperative()
   const toast = useToast()
   const [form, setForm] = useState({
@@ -417,8 +423,8 @@ function ProfileModal({ open, onClose, coop }: { open: boolean; onClose: () => v
           <Field label="Member cap">
             <input inputMode="numeric" value={form.member_cap} onChange={(e) => set('member_cap', e.target.value)} className="input" />
           </Field>
-          <Field label="Brand colour">
-            <input type="color" value={form.brand_color} onChange={(e) => set('brand_color', e.target.value)} className="input h-[38px] p-1" />
+          <Field label="Brand colour" hint={canBrand ? undefined : 'Not in your plan'}>
+            <input type="color" disabled={!canBrand} value={form.brand_color} onChange={(e) => set('brand_color', e.target.value)} className="input h-[38px] p-1 disabled:opacity-50" />
           </Field>
         </div>
         <div className="rounded-xl border border-line bg-sand/50 p-3">
@@ -565,6 +571,9 @@ function RoleForm({ role, onClose }: { role: Role | 'new'; onClose: () => void }
 }
 
 function SavingsProductsCard() {
+  // Existing products stay listed on every plan — members' goals hang off
+  // them — but adding or removing them follows the plan.
+  const canManage = useHasFeature('savings_plans')
   const { data: products = [] } = useSavingsProducts()
   const { data: types = [] } = useContributionTypes()
   const { create, remove } = useSavingsProductsCrud()
@@ -582,7 +591,8 @@ function SavingsProductsCard() {
 
   return (
     <Card>
-      <CardHeader title="Savings products" subtitle="Named savings plans (Ajo, target savings…)" action={<Button size="sm" variant="secondary" icon="add" onClick={() => setOpen(true)}>Add</Button>} />
+      <CardHeader title="Savings products" subtitle="Named savings plans (Ajo, target savings…)" action={canManage ? <Button size="sm" variant="secondary" icon="add" onClick={() => setOpen(true)}>Add</Button> : undefined} />
+      {!canManage && <PlanFeatureNote feature="savings_plans" className="mb-3" />}
       <div className="space-y-2">
         {products.length === 0 && <p className="text-[13px] text-muted">No savings products yet.</p>}
         {products.map((p) => (
@@ -590,7 +600,7 @@ function SavingsProductsCard() {
             <span className="text-ink-soft">{p.name} <span className="text-muted-2">· {p.goal_count} goals</span></span>
             <span className="flex items-center gap-2">
               <span className="font-mono text-xs text-muted-2">{p.interest_rate}%</span>
-              <button onClick={() => remove.mutate(p.id)} className="text-muted-2 hover:text-danger"><Icon name="delete" size={16} /></button>
+              {canManage && <button onClick={() => remove.mutate(p.id)} className="text-muted-2 hover:text-danger"><Icon name="delete" size={16} /></button>}
             </span>
           </div>
         ))}

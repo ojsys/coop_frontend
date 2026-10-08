@@ -8,6 +8,7 @@ import { landingSurface } from '@/api/auth'
 import {
   useLegalIndex,
   usePublicBranding,
+  usePlanCatalogue,
   usePublicPlans,
   usePublicSiteContent,
   type PublicPlan,
@@ -233,6 +234,7 @@ export function LandingPage() {
   // Policy pages an admin has published, for the footer. Absent is normal.
   const { data: legalDocs } = useLegalIndex()
   const plans = usePublicPlans()
+  const { data: catalogue } = usePlanCatalogue()
   // Annual first, as the audit recommends: it is the standard offer, and
   // monthly stays available at a higher effective cost.
   const [cycle, setCycle] = useState<'annual' | 'monthly'>('annual')
@@ -670,10 +672,33 @@ export function LandingPage() {
               </div>
 
               <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {plans.data.map((p) => (
-                  <PlanCard key={p.id} plan={p} cycle={cycle} supportEmail={supportEmail} />
+                {plans.data.map((p, i) => (
+                  <PlanCard
+                    key={p.id}
+                    plan={p}
+                    previous={i > 0 ? plans.data[i - 1] : undefined}
+                    cycle={cycle}
+                    supportEmail={supportEmail}
+                  />
                 ))}
               </div>
+
+              {/* The full system of record is in every plan — the promise is
+                  never sold in tiers. Listed once rather than ticked on every
+                  card, which would bury what actually differs. */}
+              {catalogue && catalogue.core.length > 0 && (
+                <div className="mt-6 rounded-[15px] border border-line bg-card p-6">
+                  <div className="font-display text-[15px] font-semibold text-ink">Every plan includes</div>
+                  <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm text-ink-soft sm:grid-cols-2 lg:grid-cols-3">
+                    {catalogue.core.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <Icon name="check" size={16} className="mt-0.5 shrink-0 text-green" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <p className="mt-6 max-w-2xl text-xs leading-relaxed text-muted-2">
                 Your plan follows your active member count. Prices are per
@@ -816,13 +841,18 @@ export function LandingPage() {
  */
 function PlanCard({
   plan: p,
+  previous,
   cycle,
   supportEmail,
 }: {
   plan: PublicPlan
+  /** The plan one band down, so this card can say what it adds. */
+  previous?: PublicPlan
   cycle: 'annual' | 'monthly'
   supportEmail: string
 }) {
+  const had = new Set(previous?.features.map((f) => f.key) ?? [])
+  const added = p.features.filter((f) => !had.has(f.key))
   const monthly = Number(p.price_monthly)
   const annual = p.price_annual == null ? null : Number(p.price_annual)
   const quoted = annual == null
@@ -841,7 +871,7 @@ function PlanCard({
       {showAnnual ? (
         <>
           <div className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
-            <span className="font-display text-[28px] font-semibold leading-tight text-green tnum">
+            <span className="font-display text-[28px] font-semibold leading-tight text-green tnum lg:text-2xl">
               {money(annual, p.currency)}
             </span>
             <span className="text-sm text-muted">/year</span>
@@ -855,7 +885,7 @@ function PlanCard({
         <>
           <div className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
             {p.price_is_from && <span className="text-sm text-muted">From</span>}
-            <span className="font-display text-[28px] font-semibold leading-tight text-green tnum">
+            <span className="font-display text-[28px] font-semibold leading-tight text-green tnum lg:text-2xl">
               {money(monthly, p.currency)}
             </span>
             <span className="text-sm text-muted">/month</span>
@@ -878,6 +908,32 @@ function PlanCard({
       {p.description && (
         <p className="mt-3 text-sm leading-relaxed text-muted">{p.description}</p>
       )}
+
+      <div className="mt-4 border-t border-line pt-4 text-sm">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-2">
+          {previous ? `Everything in ${previous.name}, plus` : 'The full system of record'}
+        </div>
+        {added.length > 0 || p.extras.length > 0 ? (
+          <ul className="mt-2 space-y-1.5 text-ink-soft">
+            {added.map((f) => (
+              <li key={f.key} className="flex items-start gap-2">
+                <Icon name="check" size={16} className="mt-0.5 shrink-0 text-green" />
+                {f.label}
+              </li>
+            ))}
+            {p.extras.map((line) => (
+              <li key={line} className="flex items-start gap-2">
+                <Icon name="check" size={16} className="mt-0.5 shrink-0 text-green" />
+                {line}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-muted">
+            {previous ? 'A larger member band.' : 'Everything listed below.'}
+          </p>
+        )}
+      </div>
 
       {/* Pushes the button to the card's foot so a row of cards lines up. */}
       <div className="flex-1" />

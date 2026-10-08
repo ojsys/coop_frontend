@@ -215,7 +215,11 @@ class _HomeTabState extends State<HomeTab> {
                     api: widget.api, membership: widget.session.membership))),
             const SizedBox(width: 10),
             _financeCard(Icons.flag_outlined, 'Savings goals',
-                () => _open(SavingsGoalsScreen(api: widget.api))),
+                () => _open(SavingsGoalsScreen(
+                    api: widget.api,
+                    canEdit: widget.session.membership
+                            ?.hasFeature('savings_plans') ??
+                        true))),
             const SizedBox(width: 10),
             _financeCard(Icons.savings_outlined, 'Dividends',
                 () => _open(DividendsScreen(api: widget.api))),

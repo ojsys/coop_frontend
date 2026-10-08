@@ -494,6 +494,7 @@ class Membership {
     required this.roleSlug,
     required this.roleName,
     required this.shareCapital,
+    this.features,
   });
   final int id;
   final int cooperativeId;
@@ -503,15 +504,28 @@ class Membership {
   final String? roleName;
   final double shareCapital;
 
-  factory Membership.fromJson(Map<String, dynamic> j) => Membership(
-        id: j['id'] as int,
-        cooperativeId: j['cooperative_id'] as int,
-        cooperativeName: j['cooperative_name'] as String,
-        memberNo: j['member_no'] as String,
-        roleSlug: j['role_slug'] as String?,
-        roleName: j['role_name'] as String?,
-        shareCapital: double.tryParse('${j['share_capital']}') ?? 0,
-      );
+  /// What the society's plan includes right now. Null when the server does
+  /// not say (an older backend) — treated as "everything", since the server
+  /// enforces the plan regardless and the worst case is a refusal message.
+  final List<String>? features;
+
+  bool hasFeature(String key) => features?.contains(key) ?? true;
+
+  factory Membership.fromJson(Map<String, dynamic> j) {
+    final plan = j['plan'] as Map<String, dynamic>?;
+    return Membership(
+      id: j['id'] as int,
+      cooperativeId: j['cooperative_id'] as int,
+      cooperativeName: j['cooperative_name'] as String,
+      memberNo: j['member_no'] as String,
+      roleSlug: j['role_slug'] as String?,
+      roleName: j['role_name'] as String?,
+      shareCapital: double.tryParse('${j['share_capital']}') ?? 0,
+      features: plan?['features'] == null
+          ? null
+          : List<String>.from(plan!['features'] as List),
+    );
+  }
 }
 
 class CurrentUser {

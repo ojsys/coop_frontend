@@ -28,7 +28,8 @@ import {
 } from '@/api/mutations'
 import { api } from '@/api/client'
 import { naira, dateTime } from '@/lib/format'
-import type { NotificationTemplate, PlatformTeamMember, Plan } from '@/api/types'
+import type { NotificationTemplate, PlatformTeamMember, Plan, PlanFeature } from '@/api/types'
+import { usePlanCatalogue } from '@/api/public'
 
 const TABS = [
   { key: 'plans', label: 'Plans & pricing', icon: 'sell' },
@@ -97,6 +98,9 @@ function PlansTab() {
               <div className="mt-1 text-xs text-muted-2">
                 {p.price_annual ? `${naira(p.price_annual)}/yr` : 'Annual quoted'} · {p.band_label}
               </div>
+              <div className="mt-1 text-xs text-muted-2">
+                {p.features.length ? `${p.features.length} feature${p.features.length === 1 ? '' : 's'} beyond the core` : 'Core system only'}
+              </div>
               <div className="mt-3 flex gap-2 border-t border-line pt-3">
                 <Button size="sm" variant="secondary" icon="edit" className="flex-1" onClick={() => setEditing(p)}>Edit</Button>
                 <Button size="sm" variant="ghost" icon="delete" onClick={() => remove.mutate(p.id)} />
@@ -112,6 +116,7 @@ function PlansTab() {
 
 function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void }) {
   const isNew = plan === 'new'
+  const { data: catalogue } = usePlanCatalogue()
   const { create, update } = usePlansCrud()
   const toast = useToast()
   const [form, setForm] = useState({
@@ -120,6 +125,8 @@ function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void 
     price_monthly: isNew ? '' : plan.price_monthly,
     price_annual: isNew ? '' : (plan.price_annual ?? ''),
     price_is_from: isNew ? false : plan.price_is_from,
+    features: (isNew ? [] : plan.features) as PlanFeature[],
+    extras: isNew ? '' : plan.extras,
     min_members: isNew ? '0' : String(plan.min_members),
     max_members: isNew ? '0' : String(plan.max_members),
     description: isNew ? '' : plan.description,
@@ -134,6 +141,8 @@ function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void 
       // Blank means the annual price is quoted per society.
       price_annual: form.price_annual === '' ? null : form.price_annual,
       price_is_from: form.price_is_from,
+      features: form.features,
+      extras: form.extras,
       min_members: Number(form.min_members), max_members: Number(form.max_members),
       description: form.description, active: form.active,
     }
@@ -170,6 +179,32 @@ function PlanModal({ plan, onClose }: { plan: Plan | 'new'; onClose: () => void 
           <input type="checkbox" checked={form.price_is_from} onChange={(e) => set('price_is_from', e.target.checked)} className="accent-green" /> Show the monthly price as a starting price (“From …”)
         </label>
         <Field label="Description"><input value={form.description} onChange={(e) => set('description', e.target.value)} className="input" /></Field>
+        {/* Enforced by the app: switching one off here stops new use of it
+            for every society on this plan once their grace period ends. */}
+        <fieldset className="rounded-xl border border-line p-3">
+          <legend className="px-1 text-[13px] font-semibold text-ink">Features included</legend>
+          <div className="space-y-2">
+            {(catalogue?.features ?? []).map((f) => (
+              <label key={f.key} className="flex items-start gap-2 text-[13px]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-green"
+                  checked={form.features.includes(f.key)}
+                  onChange={(e) => set('features', e.target.checked
+                    ? [...form.features, f.key]
+                    : form.features.filter((k) => k !== f.key))}
+                />
+                <span>
+                  <span className="font-medium text-ink">{f.label}</span>
+                  <span className="block text-xs text-muted-2">{f.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <Field label="Service promises" hint="One per line, shown on the price card. Nothing enforces these — publish only what you can staff.">
+          <textarea rows={3} value={form.extras} onChange={(e) => set('extras', e.target.value)} className="input" placeholder={'Email support, next working day\nOne live training session'} />
+        </Field>
         <label className="flex items-center gap-2 text-[13px]">
           <input type="checkbox" checked={form.active} onChange={(e) => set('active', e.target.checked)} className="accent-green" /> Active (offered to new cooperatives)
         </label>

@@ -270,6 +270,18 @@ function ConfigTab({ coop }: { coop: Cooperative }) {
             </div>
           )}
           {subscription && (
+            // Until this date the society keeps every feature whatever its
+            // plan. Clearing it makes features follow the plan from today.
+            <Field label="All features until" hint="Blank = features follow the plan">
+              <input
+                type="date"
+                value={subscription.features_grace_until ?? ''}
+                onChange={(e) => save({ features_grace_until: e.target.value || null })}
+                className="input"
+              />
+            </Field>
+          )}
+          {subscription && (
             <p className="text-xs text-muted-2">
               {subscription.cycle_amount
                 ? `Invoiced ${naira(subscription.cycle_amount)} per ${subscription.billing_cycle === 'annual' ? 'year' : 'month'}.`

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useDividends } from '@/api/hooks'
 import { useDividendsCrud } from '@/api/mutations'
 import { useToast } from '@/ui/toast'
+import { useHasFeature } from '@/auth/planFeatures'
+import { PlanFeatureNote } from '@/auth/PlanFeatureNote'
 import { apiErrorMessage } from '@/lib/apiError'
 import { PageHeader } from '@/ui/PageHeader'
 import { Card } from '@/ui/Card'
@@ -21,6 +23,9 @@ export function DividendsPage() {
   const toast = useToast()
   const [declareOpen, setDeclareOpen] = useState(false)
   const [viewing, setViewing] = useState<DividendDeclaration | null>(null)
+  // Past distributions stay visible on every plan; declaring and posting new
+  // ones follows the plan.
+  const canDeclare = useHasFeature('dividends')
 
   async function post(d: DividendDeclaration) {
     if (!window.confirm(`Post ${naira(d.total_amount)} to the ledger? This credits each member's savings and cannot be undone except by reversal.`)) return
@@ -37,8 +42,9 @@ export function DividendsPage() {
       <PageHeader
         title="Dividends & Surplus"
         subtitle="Distribute year-end surplus to members pro-rata to their share capital"
-        actions={<Button size="sm" icon="add" onClick={() => setDeclareOpen(true)}>Declare distribution</Button>}
+        actions={canDeclare ? <Button size="sm" icon="add" onClick={() => setDeclareOpen(true)}>Declare distribution</Button> : undefined}
       />
+      {!canDeclare && <PlanFeatureNote feature="dividends" className="mb-4" />}
 
       <QueryState isLoading={isLoading} isError={isError}>
         <div className="space-y-3">
@@ -56,7 +62,7 @@ export function DividendsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="secondary" onClick={() => setViewing(d)}>Allocations</Button>
-                  {d.status === 'draft' && <Button size="sm" icon="post_add" onClick={() => post(d)} loading={action.isPending && action.variables?.id === d.id}>Post</Button>}
+                  {d.status === 'draft' && canDeclare && <Button size="sm" icon="post_add" onClick={() => post(d)} loading={action.isPending && action.variables?.id === d.id}>Post</Button>}
                   {d.status === 'draft' && <button onClick={() => remove.mutate(d.id)} className="text-muted-2 hover:text-danger" title="Delete"><Icon name="delete" size={18} /></button>}
                 </div>
               </div>

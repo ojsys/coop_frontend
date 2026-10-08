@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useLoans, useDisbursementEvidence, useLoanHealth, useLoanProducts, useMembers, usePendingRepayments, useWallet } from '@/api/hooks'
 import { useLoansCrud, useLoanProductsCrud, useConfirmRepayment, useRejectRepayment, useRecheckDisbursement, useFixLoanHealth } from '@/api/mutations'
 import { useAuth } from '@/auth/AuthContext'
+import { useHasFeature } from '@/auth/planFeatures'
+import { PlanFeatureNote } from '@/auth/PlanFeatureNote'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { PageHeader } from '@/ui/PageHeader'
@@ -638,6 +640,9 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
   // button failed.
   const shortfall = Number(loan.principal) - walletBalance
   const walletShort = shortfall > 0
+  // On a plan without electronic payouts only the cash/transfer record is
+  // offered; the server would refuse a bank payout anyway.
+  const canPayToBank = useHasFeature('electronic_payouts')
   // Refreshing only helps when the member's own record carries a code the
   // snapshot does not. Offering it otherwise would promise a fix that changes
   // nothing.
@@ -764,7 +769,9 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
 
         <p className="text-xs text-muted-2">Either action posts a balanced journal to the ledger, builds the repayment schedule, and notifies the member by app + email.</p>
 
-        {walletShort ? (
+        {!canPayToBank ? (
+          <PlanFeatureNote feature="electronic_payouts" />
+        ) : walletShort ? (
           <div className="rounded-lg bg-gold-50 px-3 py-2.5 text-xs text-gold-deep">
             <p className="flex items-start gap-2">
               <Icon name="account_balance_wallet" size={16} />
@@ -801,6 +808,7 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
           <Button variant="secondary" size="sm" icon="payments" loading={busy} onClick={onRecordCash}>
             Record cash disbursement
           </Button>
+          {canPayToBank && (
           <Button
             size="sm"
             icon="account_balance"
@@ -817,6 +825,7 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
           >
             Pay {naira(loan.principal)} to bank
           </Button>
+          )}
         </div>
       </div>
     </Modal>
