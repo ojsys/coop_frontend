@@ -79,6 +79,11 @@ function ApplyModal({ onClose }: { onClose: () => void }) {
   const toast = useToast()
   const [form, setForm] = useState({ product: '', principal: '', term_months: '6', purpose: '' })
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
+  const chosen = products.find((p) => String(p.id) === form.product)
+  const amount = Number(form.principal || 0)
+  const fee = chosen
+    ? Math.round((Number(chosen.application_fee_flat) + amount * Number(chosen.application_fee_percent) / 100) * 100) / 100
+    : 0
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -104,6 +109,16 @@ function ApplyModal({ onClose }: { onClose: () => void }) {
           <Field label="Term (months)"><input type="number" min="1" value={form.term_months} onChange={(e) => set('term_months', e.target.value)} className="input" /></Field>
         </div>
         <Field label="Purpose"><input value={form.purpose} onChange={(e) => set('purpose', e.target.value)} className="input" placeholder="Shop restock" /></Field>
+        {/* Shown before submitting: the fee comes off what is paid out, but
+            the member repays the full amount, so they should see both. */}
+        {fee > 0 && amount > 0 && (
+          <div className="rounded-xl bg-sand-deep px-3 py-2.5 text-xs text-muted">
+            Application fee <span className="font-mono text-ink-soft">{naira(fee)}</span> is deducted
+            when the loan is paid out. You receive{' '}
+            <span className="font-semibold text-ink">{naira(Math.max(amount - fee, 0))}</span> and
+            repay {naira(amount)} plus interest.
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
           <Button type="submit" size="sm" loading={apply.isPending}>Submit</Button>

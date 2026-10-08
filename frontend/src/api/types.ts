@@ -112,6 +112,9 @@ export interface LoanProduct {
   interest_rate: string
   max_amount: string
   max_term_months: number
+  /** Application fee: this % of the amount plus the flat sum below. */
+  application_fee_percent: string
+  application_fee_flat: string
   active: boolean
   created_at: string
 }
@@ -181,6 +184,10 @@ export interface Loan {
   product: number
   product_name: string
   principal: string
+  /** Deducted at disbursement; captured when the loan was applied for. */
+  application_fee: string
+  /** What the member receives: principal − application_fee. */
+  amount_to_disburse: string
   interest_rate: string
   term_months: number
   purpose: string

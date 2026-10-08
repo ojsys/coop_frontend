@@ -213,6 +213,16 @@ class _ApplyLoanSheetState extends State<_ApplyLoanSheet> {
   final _purpose = TextEditingController();
   bool _submitting = false;
 
+  String? _feeNote() {
+    final amount = double.tryParse(_amount.text) ?? 0;
+    final fee = _product?.feeFor(amount) ?? 0;
+    if (fee <= 0 || amount <= 0) return null;
+    final receive = amount - fee < 0 ? 0 : amount - fee;
+    return 'Application fee ${naira(fee)} is deducted when the loan is paid '
+        'out. You receive ${naira(receive)} and repay ${naira(amount)} plus '
+        'interest.';
+  }
+
   Future<void> _submit() async {
     if (_product == null || _amount.text.isEmpty) return;
     setState(() => _submitting = true);
@@ -286,6 +296,8 @@ class _ApplyLoanSheetState extends State<_ApplyLoanSheet> {
                 child: TextField(
                   controller: _amount,
                   keyboardType: TextInputType.number,
+                  // Rebuilds the fee line below as the amount changes.
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                       labelText: 'Amount (₦)', border: OutlineInputBorder()),
                 ),
@@ -308,6 +320,13 @@ class _ApplyLoanSheetState extends State<_ApplyLoanSheet> {
             decoration: const InputDecoration(
                 labelText: 'Purpose', border: OutlineInputBorder()),
           ),
+          // The fee comes off what is paid out, but the member repays the full
+          // amount — so show both before they submit.
+          if (_feeNote() != null) ...[
+            const SizedBox(height: 12),
+            Text(_feeNote()!,
+                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          ],
           const SizedBox(height: 16),
           FilledButton(
             onPressed: _submitting ? null : _submit,

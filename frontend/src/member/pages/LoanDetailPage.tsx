@@ -41,6 +41,11 @@ export function LoanDetailPage() {
                   {naira(loan.principal)} @ {Number(loan.interest_rate)}% flat · {loan.term_months} mo
                   {loan.purpose ? ` · ${loan.purpose}` : ''}
                 </p>
+                {Number(loan.application_fee ?? 0) > 0 && (
+                  <p className="mt-0.5 text-xs text-muted-2">
+                    {naira(loan.application_fee)} application fee · you receive {naira(loan.amount_to_disburse)}
+                  </p>
+                )}
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                   <Stat label="Repayable" value={naira(loan.total_repayable)} />
                   <Stat label="Repaid" value={naira(loan.repaid_amount ?? 0)} />

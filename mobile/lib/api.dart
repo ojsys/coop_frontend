@@ -769,6 +769,8 @@ class LoanProduct {
     required this.interestRate,
     required this.maxAmount,
     required this.maxTermMonths,
+    this.feePercent = 0,
+    this.feeFlat = 0,
   });
   final int id;
   final String name;
@@ -776,12 +778,23 @@ class LoanProduct {
   final double maxAmount;
   final int maxTermMonths;
 
+  /// Application fee: this % of the amount plus [feeFlat], deducted when the
+  /// loan is paid out. The member repays the full amount.
+  final double feePercent;
+  final double feeFlat;
+
+  double feeFor(double amount) =>
+      ((feeFlat + amount * feePercent / 100) * 100).roundToDouble() / 100;
+
   factory LoanProduct.fromJson(Map<String, dynamic> j) => LoanProduct(
         id: j['id'] as int,
         name: j['name'] as String,
         interestRate: double.tryParse('${j['interest_rate']}') ?? 0,
         maxAmount: double.tryParse('${j['max_amount']}') ?? 0,
         maxTermMonths: j['max_term_months'] as int? ?? 12,
+        feePercent:
+            double.tryParse('${j['application_fee_percent']}') ?? 0,
+        feeFlat: double.tryParse('${j['application_fee_flat']}') ?? 0,
       );
 }
 
@@ -802,10 +815,15 @@ class Loan {
     this.instalments = const [],
     this.repayments = const [],
     this.coopBank,
+    this.applicationFee = 0,
   });
   final int id;
   final String productName;
   final double principal;
+
+  /// Deducted at disbursement; the member receives [amountToDisburse].
+  final double applicationFee;
+  double get amountToDisburse => principal - applicationFee;
   final double interestRate;
   final int termMonths;
   final String purpose;
@@ -828,6 +846,7 @@ class Loan {
         id: j['id'] as int,
         productName: j['product_name'] as String? ?? '',
         principal: double.tryParse('${j['principal']}') ?? 0,
+        applicationFee: double.tryParse('${j['application_fee']}') ?? 0,
         interestRate: double.tryParse('${j['interest_rate']}') ?? 0,
         termMonths: j['term_months'] as int? ?? 0,
         purpose: j['purpose'] as String? ?? '',

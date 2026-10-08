@@ -239,6 +239,14 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
           '${l.purpose.isNotEmpty ? ' · ${l.purpose}' : ''}',
           style: const TextStyle(color: AppColors.muted, fontSize: 13),
         ),
+        if (l.applicationFee > 0) ...[
+          const SizedBox(height: 2),
+          Text(
+            '${naira(l.applicationFee)} application fee · you receive '
+            '${naira(l.amountToDisburse)}',
+            style: const TextStyle(color: AppColors.muted2, fontSize: 12),
+          ),
+        ],
         const SizedBox(height: 14),
         Row(
           children: [

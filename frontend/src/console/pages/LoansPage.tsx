@@ -17,7 +17,7 @@ import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
 import { naira, shortDate } from '@/lib/format'
-import type { DisbursementVerdict, Loan, LoanFinding, RepaymentClaim } from '@/api/types'
+import type { DisbursementVerdict, Loan, LoanFinding, LoanProduct, RepaymentClaim } from '@/api/types'
 
 const statusTone = (s: string) =>
   s === 'repaid' || s === 'approved' ? 'green' : s === 'rejected' ? 'danger' : s === 'disbursed' ? 'gold' : 'neutral'
@@ -638,7 +638,10 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
   // waiting to happen. Saying so here — with the shortfall — is the difference
   // between an officer funding the wallet and an officer wondering why the
   // button failed.
-  const shortfall = Number(loan.principal) - walletBalance
+  // What actually leaves: the principal less the application fee.
+  const payout = Number(loan.amount_to_disburse ?? loan.principal)
+  const fee = Number(loan.application_fee ?? 0)
+  const shortfall = payout - walletBalance
   const walletShort = shortfall > 0
   // On a plan without electronic payouts only the cash/transfer record is
   // offered; the server would refuse a bank payout anyway.
@@ -742,6 +745,16 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
             <MStat label={`Interest @ ${loan.interest_rate}% flat`} value={naira(loan.interest)} />
             <MStat label="Repayable" value={naira(loan.total_repayable)} />
           </dl>
+          {fee > 0 && (
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-sand px-3 py-2 text-sm">
+              <span className="text-muted">
+                Less application fee <span className="font-mono text-ink-soft">{naira(fee)}</span>
+              </span>
+              <span>
+                Member receives <span className="font-mono font-semibold text-ink">{naira(payout)}</span>
+              </span>
+            </div>
+          )}
           <p className="mt-2 text-center text-xs text-muted">
             {loan.term_months} fixed monthly instalments of <span className="font-mono text-ink-soft">{naira(monthly)}</span>
           </p>
@@ -778,8 +791,8 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
               <span>
                 The disbursement wallet holds{' '}
                 <strong>{naira(walletBalance)}</strong>, which is{' '}
-                <strong>{naira(shortfall)}</strong> short of this loan's{' '}
-                {naira(loan.principal)}. Paying to a bank will be refused until
+                <strong>{naira(shortfall)}</strong> short of the{' '}
+                {naira(payout)} to be paid out. Paying to a bank will be refused until
                 it is funded. Recording a cash disbursement does not use the
                 wallet.
               </span>
@@ -793,7 +806,7 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
         ) : (
           <div className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green">
             <Icon name="check" size={14} /> The wallet holds{' '}
-            {naira(walletBalance)} — enough to cover this {naira(loan.principal)}.
+            {naira(walletBalance)} — enough to cover this {naira(payout)}.
           </div>
         )}
 
@@ -806,7 +819,7 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
           <Button variant="secondary" size="sm" icon="payments" loading={busy} onClick={onRecordCash}>
-            Record cash disbursement
+            Record cash disbursement{fee > 0 ? ` of ${naira(payout)}` : ''}
           </Button>
           {canPayToBank && (
           <Button
@@ -823,7 +836,7 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
             }
             onClick={onPayToBank}
           >
-            Pay {naira(loan.principal)} to bank
+            Pay {naira(payout)} to bank
           </Button>
           )}
         </div>
@@ -965,26 +978,57 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   )
 }
 
+const EMPTY_PRODUCT = {
+  name: '', interest_rate: '10', max_amount: '', max_term_months: '12',
+  application_fee_percent: '0', application_fee_flat: '0',
+}
+
 function ProductsTab() {
   const { data: products = [] } = useLoanProducts()
-  const { create, remove } = useLoanProductsCrud()
+  const { create, update, remove } = useLoanProductsCrud()
   const toast = useToast()
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', interest_rate: '10', max_amount: '', max_term_months: '12' })
+  // null = closed, 'new' = adding, a product = editing it. Editing matters
+  // for fees: a society adding an application fee to a product it already
+  // lends on must not have to delete and recreate it.
+  const [editing, setEditing] = useState<LoanProduct | 'new' | null>(null)
+  const [form, setForm] = useState(EMPTY_PRODUCT)
+  const set = (k: keyof typeof EMPTY_PRODUCT, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  function open(p: LoanProduct | 'new') {
+    setEditing(p)
+    setForm(p === 'new' ? EMPTY_PRODUCT : {
+      name: p.name, interest_rate: p.interest_rate, max_amount: p.max_amount,
+      max_term_months: String(p.max_term_months),
+      application_fee_percent: p.application_fee_percent,
+      application_fee_flat: p.application_fee_flat,
+    })
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    const payload = {
+      name: form.name, interest_rate: form.interest_rate, max_amount: form.max_amount || 0,
+      max_term_months: Number(form.max_term_months),
+      application_fee_percent: form.application_fee_percent || 0,
+      application_fee_flat: form.application_fee_flat || 0,
+    }
     try {
-      await create.mutateAsync({ name: form.name, interest_rate: form.interest_rate, max_amount: form.max_amount || 0, max_term_months: Number(form.max_term_months), active: true })
-      toast('Loan product added'); setOpen(false); setForm({ name: '', interest_rate: '10', max_amount: '', max_term_months: '12' })
-    } catch (err) { toast(apiErrorMessage(err, 'Could not add product'), 'error') }
+      if (editing === 'new') await create.mutateAsync({ ...payload, active: true })
+      else if (editing) await update.mutateAsync({ id: editing.id, ...payload })
+      toast(editing === 'new' ? 'Loan product added' : 'Loan product updated')
+      setEditing(null)
+    } catch (err) { toast(apiErrorMessage(err, 'Could not save product'), 'error') }
   }
+
+  // A worked example, so the officer sees what the fee does to a real loan.
+  const example = 100000
+  const exampleFee = Number(form.application_fee_flat || 0) + example * Number(form.application_fee_percent || 0) / 100
 
   return (
     <Card padded={false}>
       <div className="flex items-center justify-between px-5 py-4">
         <CardHeader title="Loan products" subtitle="Terms members can borrow on" />
-        <Button size="sm" icon="add" onClick={() => setOpen(true)}>New product</Button>
+        <Button size="sm" icon="add" onClick={() => open('new')}>New product</Button>
       </div>
       <div className="divide-y divide-line">
         {products.length === 0 && <p className="px-5 py-6 text-center text-sm text-muted">No loan products yet.</p>}
@@ -993,28 +1037,61 @@ function ProductsTab() {
             <Icon name="request_quote" size={20} className="text-muted-2" />
             <div className="flex-1">
               <div className="text-sm font-medium text-ink">{p.name}</div>
-              <div className="text-xs text-muted-2">{p.interest_rate}% flat · up to {naira(p.max_amount)} · {p.max_term_months} mo</div>
+              <div className="text-xs text-muted-2">
+                {p.interest_rate}% flat · up to {naira(p.max_amount)} · {p.max_term_months} mo
+                {feeLabel(p) && ` · ${feeLabel(p)} application fee`}
+              </div>
             </div>
-            <button onClick={() => remove.mutate(p.id)} className="text-muted-2 hover:text-danger"><Icon name="delete" size={18} /></button>
+            <button onClick={() => open(p)} className="text-muted-2 hover:text-ink" title="Edit"><Icon name="edit" size={18} /></button>
+            <button onClick={() => remove.mutate(p.id)} className="text-muted-2 hover:text-danger" title="Delete"><Icon name="delete" size={18} /></button>
           </div>
         ))}
       </div>
-      {open && (
-        <Modal open onClose={() => setOpen(false)} title="New loan product">
+      {editing && (
+        <Modal open onClose={() => setEditing(null)} title={editing === 'new' ? 'New loan product' : `Edit ${editing.name}`}>
           <form onSubmit={submit} className="space-y-3.5">
-            <Field label="Name"><input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="input" placeholder="Emergency Loan" /></Field>
+            <Field label="Name"><input required value={form.name} onChange={(e) => set('name', e.target.value)} className="input" placeholder="Emergency Loan" /></Field>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="Interest % flat"><input type="number" min="0" step="0.1" value={form.interest_rate} onChange={(e) => setForm((f) => ({ ...f, interest_rate: e.target.value }))} className="input" /></Field>
-              <Field label="Max (₦)"><input type="number" min="0" value={form.max_amount} onChange={(e) => setForm((f) => ({ ...f, max_amount: e.target.value }))} className="input" /></Field>
-              <Field label="Max term"><input type="number" min="1" value={form.max_term_months} onChange={(e) => setForm((f) => ({ ...f, max_term_months: e.target.value }))} className="input" /></Field>
+              <Field label="Interest % flat"><input type="number" min="0" step="0.1" value={form.interest_rate} onChange={(e) => set('interest_rate', e.target.value)} className="input" /></Field>
+              <Field label="Max (₦)"><input type="number" min="0" value={form.max_amount} onChange={(e) => set('max_amount', e.target.value)} className="input" /></Field>
+              <Field label="Max term"><input type="number" min="1" value={form.max_term_months} onChange={(e) => set('max_term_months', e.target.value)} className="input" /></Field>
             </div>
+            <div className="rounded-xl border border-line p-3">
+              <div className="text-[13px] font-semibold text-ink">Application fee</div>
+              <p className="mb-3 text-xs text-muted-2">
+                Deducted when the loan is paid out. The member repays the full
+                amount borrowed and receives it less this fee. Set either or both.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="% of amount"><input type="number" min="0" max="99" step="0.1" value={form.application_fee_percent} onChange={(e) => set('application_fee_percent', e.target.value)} className="input" /></Field>
+                <Field label="Plus fixed (₦)"><input type="number" min="0" value={form.application_fee_flat} onChange={(e) => set('application_fee_flat', e.target.value)} className="input" /></Field>
+              </div>
+              {exampleFee > 0 && (
+                <p className="mt-2 text-xs text-muted">
+                  On a {naira(example)} loan: fee {naira(exampleFee)}, member receives{' '}
+                  <span className="font-semibold text-ink">{naira(example - exampleFee)}</span> and repays {naira(example)} plus interest.
+                </p>
+              )}
+            </div>
+            {editing !== 'new' && (
+              <p className="text-xs text-muted-2">
+                Loans already applied for keep the fee they were shown.
+              </p>
+            )}
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" size="sm" loading={create.isPending}>Add product</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button type="submit" size="sm" loading={create.isPending || update.isPending}>{editing === 'new' ? 'Add product' : 'Save'}</Button>
             </div>
           </form>
         </Modal>
       )}
     </Card>
   )
+}
+
+/** "2% + ₦500", "₦1,000", "1.5%" — or empty when there is no fee. */
+function feeLabel(p: LoanProduct): string {
+  const pct = Number(p.application_fee_percent)
+  const flat = Number(p.application_fee_flat)
+  return [pct > 0 ? `${pct}%` : '', flat > 0 ? naira(flat) : ''].filter(Boolean).join(' + ')
 }
