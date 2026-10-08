@@ -58,6 +58,11 @@ cPanel → **MySQL Databases**. Create a database and a user, then grant
 - database: `cpuser_coopdb`
 - user: `cpuser_coopapp`
 
+cPanel creates the database **latin1**, and every table inherits that, even
+though the app connects with `utf8mb4`. Names with Yorùbá, Igbo or Hausa tone
+marks ("Ìmọ̀lè", "Adéọlá") are then refused with `Incorrect string value`. Step 6
+converts it with `fix_db_charset`.
+
 ---
 
 ## 3. Create the Python application
@@ -140,10 +145,15 @@ export DJANGO_SETTINGS_MODULE=config.settings.prod
 
 pip install -r requirements.txt          # NOT requirements-dev.txt
 python manage.py migrate
+python manage.py fix_db_charset --apply  # latin1 → utf8mb4; skips converted tables
 python manage.py collectstatic --noinput
 python manage.py createsuperuser
 mkdir -p media && chmod 755 media        # uploads target; must be writable
 ```
+
+**Never run `seed_demo` or `seed_platform` here.** They create fictional
+cooperatives, members, invoices and users, and both refuse to run under
+`config.settings.prod`. Plans and prices come from `migrate`.
 
 The running app is unaffected by this: `passenger_wsgi.py` and `wsgi.py` both
 default to `config.settings.prod` on their own. It only bites CLI commands.
