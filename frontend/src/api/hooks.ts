@@ -31,6 +31,7 @@ import type {
   Cooperative,
   DashboardData,
   DividendDeclaration,
+  DividendSurplus,
   Domain,
   Invoice,
   LedgerEntry,
@@ -585,6 +586,19 @@ export function useLoans(params?: { membership?: number; status?: string }) {
     queryFn: async () => {
       const { data } = await api.get<Paginated<Loan> | Loan[]>('/loans/', { params })
       return unwrap(data)
+    },
+  })
+}
+
+export function useDividendSurplus() {
+  const coop = useCoopKey()
+  return useQuery({
+    // Under the 'dividends' key so posting or reversing (which invalidate
+    // everything) refreshes it with the list.
+    queryKey: ['dividends', 'surplus', coop],
+    queryFn: async () => {
+      const { data } = await api.get<DividendSurplus>('/dividends/surplus/')
+      return data
     },
   })
 }

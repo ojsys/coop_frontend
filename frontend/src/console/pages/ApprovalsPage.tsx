@@ -92,7 +92,7 @@ function SubmitModal({ open, onClose }: { open: boolean; onClose: () => void; pe
   const targets = useMemo(() => {
     if (actionType === 'loan.approve') return loans.filter((l) => l.status === 'pending').map((l) => ({ value: String(l.id), label: `${l.member_name} · ${naira(l.principal)}` }))
     if (actionType === 'loan.disburse') return loans.filter((l) => l.status === 'approved').map((l) => ({ value: String(l.id), label: `${l.member_name} · ${naira(l.principal)}` }))
-    return dividends.filter((d) => d.status === 'draft').map((d) => ({ value: String(d.id), label: `${d.period_label} · ${naira(d.total_amount)}` }))
+    return dividends.filter((d) => d.status === 'draft' && !d.awaiting_approval).map((d) => ({ value: String(d.id), label: `${d.period_label} · ${naira(d.total_amount)}` }))
   }, [actionType, loans, dividends])
 
   async function submit(e: React.FormEvent) {

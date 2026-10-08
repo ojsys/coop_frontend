@@ -232,13 +232,33 @@ export interface DividendAllocation {
 export interface DividendDeclaration {
   id: number
   period_label: string
+  /** 'pool' = a fixed total shared pro-rata; 'rate' = % of share capital. */
+  method: 'pool' | 'rate'
+  rate: string | null
   total_amount: string
   note: string
-  status: 'draft' | 'posted'
+  status: 'draft' | 'posted' | 'reversed'
+  status_display: string
+  /** A draft waiting for a second officer to approve posting it. */
+  awaiting_approval: boolean
   posted_at: string | null
+  reversed_at: string | null
+  reversal_reason: string
   member_count: number
   allocations: DividendAllocation[]
+  created_by_name: string | null
   created_at: string
+}
+
+/** `GET /dividends/surplus/` — what may be distributed, and why. */
+export interface DividendSurplus {
+  income_total: string
+  expense_total: string
+  /** Negative once dividends have been paid from it. */
+  retained_surplus: string
+  available: string
+  share_capital_base: string
+  eligible_members: number
 }
 
 export interface MemberDividend {

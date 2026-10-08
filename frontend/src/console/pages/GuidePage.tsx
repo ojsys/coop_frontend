@@ -217,14 +217,29 @@ const SECTIONS: GuideSection[] = [
     id: 'dividends',
     title: 'Dividends',
     icon: 'paid',
-    keywords: 'surplus distribution declaration allocation share capital pro rata',
+    keywords: 'surplus distribution declaration allocation share capital pro rata rate approval reverse',
     body: (
-      <p>
-        Declare a surplus for a period and it is allocated to members in
-        proportion to their share capital. Review the allocations while the
-        declaration is a draft; posting it writes the journals and makes it
-        part of the record.
-      </p>
+      <>
+        <p>
+          The page shows how much surplus is available — income less expenses,
+          less dividends already paid. A dividend can only come from that, never
+          from members' savings or share capital.
+        </p>
+        <p>
+          Declare one for a period either as a rate on share capital (say 10%)
+          or as a fixed total shared in proportion to each member's shares. It
+          is saved as a draft: check the allocations, download them for the AGM
+          if you need to, then send it for approval. A different officer
+          approves it on the Approvals page, and only then is it added to each
+          member's savings and each member told.
+        </p>
+        <p>
+          A posted dividend is never deleted. If it was wrong, reverse it with a
+          reason: the money comes back out of members' savings by a mirror entry,
+          and members are told. Reversal is refused if a member has already
+          withdrawn their dividend.
+        </p>
+      </>
     ),
   },
   {
