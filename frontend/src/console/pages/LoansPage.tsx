@@ -182,6 +182,7 @@ export function LoansPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-display text-[15px] font-semibold text-ink">{l.member_name}</span>
+                      {l.member_kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
                       <span className="font-mono text-xs text-muted-2">{l.member_no}</span>
                       <Badge tone={statusTone(l.status)} dot>{l.status_display}</Badge>
                     </div>
@@ -981,6 +982,7 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
 const EMPTY_PRODUCT = {
   name: '', interest_rate: '10', max_amount: '', max_term_months: '12',
   application_fee_percent: '0', application_fee_flat: '0',
+  open_to_non_members: false, non_member_interest_rate: '',
 }
 
 function ProductsTab() {
@@ -992,7 +994,7 @@ function ProductsTab() {
   // lends on must not have to delete and recreate it.
   const [editing, setEditing] = useState<LoanProduct | 'new' | null>(null)
   const [form, setForm] = useState(EMPTY_PRODUCT)
-  const set = (k: keyof typeof EMPTY_PRODUCT, v: string) => setForm((f) => ({ ...f, [k]: v }))
+  const set = (k: keyof typeof EMPTY_PRODUCT, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }))
 
   function open(p: LoanProduct | 'new') {
     setEditing(p)
@@ -1001,6 +1003,8 @@ function ProductsTab() {
       max_term_months: String(p.max_term_months),
       application_fee_percent: p.application_fee_percent,
       application_fee_flat: p.application_fee_flat,
+      open_to_non_members: p.open_to_non_members,
+      non_member_interest_rate: p.non_member_interest_rate ?? '',
     })
   }
 
@@ -1011,6 +1015,9 @@ function ProductsTab() {
       max_term_months: Number(form.max_term_months),
       application_fee_percent: form.application_fee_percent || 0,
       application_fee_flat: form.application_fee_flat || 0,
+      open_to_non_members: form.open_to_non_members,
+      // Blank = non-members borrow at the members' rate.
+      non_member_interest_rate: form.open_to_non_members && form.non_member_interest_rate !== '' ? form.non_member_interest_rate : null,
     }
     try {
       if (editing === 'new') await create.mutateAsync({ ...payload, active: true })
@@ -1040,6 +1047,7 @@ function ProductsTab() {
               <div className="text-xs text-muted-2">
                 {p.interest_rate}% flat · up to {naira(p.max_amount)} · {p.max_term_months} mo
                 {feeLabel(p) && ` · ${feeLabel(p)} application fee`}
+                {p.open_to_non_members && ` · non-members${p.non_member_interest_rate ? ` at ${Number(p.non_member_interest_rate)}%` : ''}`}
               </div>
             </div>
             <button onClick={() => open(p)} className="text-muted-2 hover:text-ink" title="Edit"><Icon name="edit" size={18} /></button>
@@ -1073,9 +1081,23 @@ function ProductsTab() {
                 </p>
               )}
             </div>
+            <div className="rounded-xl border border-line p-3">
+              <label className="flex items-start gap-2 text-[13px]">
+                <input type="checkbox" className="mt-0.5 accent-green" checked={form.open_to_non_members} onChange={(e) => set('open_to_non_members', e.target.checked)} />
+                <span>
+                  <span className="font-semibold text-ink">Open to non-members</span>
+                  <span className="block text-xs text-muted-2">People your society serves who have not joined may apply.</span>
+                </span>
+              </label>
+              {form.open_to_non_members && (
+                <Field label="Interest % flat for non-members" hint="Blank = same as members">
+                  <input type="number" min="0" step="0.1" value={form.non_member_interest_rate} onChange={(e) => set('non_member_interest_rate', e.target.value)} className="input mt-1" />
+                </Field>
+              )}
+            </div>
             {editing !== 'new' && (
               <p className="text-xs text-muted-2">
-                Loans already applied for keep the fee they were shown.
+                Loans already applied for keep the fee and rate they were shown.
               </p>
             )}
             <div className="flex justify-end gap-2 pt-2">

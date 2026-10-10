@@ -12,6 +12,8 @@ export interface MembershipSummary {
   cooperative_favicon: string | null
   cooperative_brand_color: string
   member_no: string
+  /** Non-members cannot vote or receive dividends. Absent on older servers. */
+  kind?: MemberKind
   role_slug: string | null
   /** Holds an office of any kind — the rule for reaching the console at all. */
   is_officer: boolean
@@ -38,7 +40,20 @@ export interface MembershipPlan {
   features: PlanFeature[]
   /** While set, every feature is included regardless of plan. */
   grace_until: string | null
+  band_label?: string | null
+  min_members?: number | null
+  /** 0 = no upper limit. */
+  max_members?: number | null
+  /** Active people on the register — members and non-members — as billed. */
+  members_counted?: number
+  billing_cycle?: 'monthly' | 'annual' | null
+  cycle_amount?: string | null
+  status?: string | null
+  renews_on?: string | null
 }
+
+/** A full member, or someone the society serves who has not joined. */
+export type MemberKind = 'member' | 'non_member'
 
 export interface CurrentUser {
   id: number
@@ -61,6 +76,8 @@ export interface Member {
   phone: string
   role: number | null
   role_name: string | null
+  kind: MemberKind
+  kind_display: string
   status: MemberStatus
   share_capital: string
   joined_at: string | null
@@ -115,6 +132,9 @@ export interface LoanProduct {
   /** Application fee: this % of the amount plus the flat sum below. */
   application_fee_percent: string
   application_fee_flat: string
+  /** Whether non-members may apply, and their rate (null = members' rate). */
+  open_to_non_members: boolean
+  non_member_interest_rate: string | null
   active: boolean
   created_at: string
 }
@@ -183,6 +203,7 @@ export interface Loan {
   member_photo?: string | null
   product: number
   product_name: string
+  member_kind?: MemberKind
   principal: string
   /** Deducted at disbursement; captured when the loan was applied for. */
   application_fee: string

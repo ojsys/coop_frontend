@@ -10,7 +10,7 @@ import { Card } from '@/ui/Card'
 import { Button } from '@/ui/Button'
 import { Icon } from '@/ui/Icon'
 import { Avatar } from '@/ui/Avatar'
-import { StatusPill } from '@/ui/Badge'
+import { Badge, StatusPill } from '@/ui/Badge'
 import { Table, Pagination, type Column } from '@/ui/Table'
 import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
@@ -20,7 +20,7 @@ import { naira } from '@/lib/format'
 import type { Member } from '@/api/types'
 
 const PAGE_SIZE = 10
-const FILTERS = ['all', 'active', 'arrears', 'suspended'] as const
+const FILTERS = ['all', 'active', 'arrears', 'suspended', 'non-members'] as const
 type Filter = (typeof FILTERS)[number]
 
 export function MembersPage() {
@@ -41,6 +41,7 @@ export function MembersPage() {
     let rows = members
     if (filter === 'active') rows = rows.filter((m) => m.status === 'active')
     if (filter === 'suspended') rows = rows.filter((m) => m.status === 'suspended')
+    if (filter === 'non-members') rows = rows.filter((m) => m.kind === 'non_member')
     if (search) {
       const q = search.toLowerCase()
       rows = rows.filter(
@@ -63,7 +64,10 @@ export function MembersPage() {
         <div className="flex items-center gap-3">
           <Avatar name={m.full_name} size={34} />
           <div>
-            <div className="font-medium text-ink">{m.full_name}</div>
+            <div className="flex items-center gap-2 font-medium text-ink">
+              {m.full_name}
+              {m.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
+            </div>
             <div className="font-mono text-xs text-muted-2">{m.member_no}</div>
           </div>
         </div>
@@ -110,13 +114,14 @@ export function MembersPage() {
     total: members.length,
     active: members.filter((m) => m.status === 'active').length,
     suspended: members.filter((m) => m.status === 'suspended').length,
+    nonMembers: members.filter((m) => m.kind === 'non_member').length,
   }
 
   return (
     <div>
       <PageHeader
         title="Members"
-        subtitle={`${counts.total} total · ${counts.active} active · ${counts.suspended} suspended`}
+        subtitle={`${counts.total} total · ${counts.active} active · ${counts.suspended} suspended${counts.nonMembers ? ` · ${counts.nonMembers} non-member${counts.nonMembers === 1 ? '' : 's'}` : ''}`}
         actions={
           canManage ? (
             <>
@@ -124,7 +129,7 @@ export function MembersPage() {
                 Import CSV
               </Button>
               <Button icon="person_add" size="sm" onClick={() => setAddOpen(true)}>
-                Add member
+                Add person
               </Button>
             </>
           ) : undefined
@@ -261,12 +266,14 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
   const create = useCreateMember()
   const toast = useToast()
   const [form, setForm] = useState({
+    kind: 'member' as 'member' | 'non_member',
     member_no: '',
     full_name: '',
     email: '',
     phone: '',
     share_capital: '0',
   })
+  const nonMember = form.kind === 'non_member'
 
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }))
@@ -275,25 +282,50 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     try {
-      await create.mutateAsync({ ...form, status: 'active' })
-      toast('Member added')
+      // A non-member holds no shares, whatever is left in the field.
+      await create.mutateAsync({ ...form, share_capital: nonMember ? '0' : form.share_capital, status: 'active' })
+      toast(nonMember ? 'Non-member added' : 'Member added')
       onClose()
-      setForm({ member_no: '', full_name: '', email: '', phone: '', share_capital: '0' })
+      setForm({ kind: 'member', member_no: '', full_name: '', email: '', phone: '', share_capital: '0' })
     } catch (err) {
       toast(apiErrorMessage(err, 'Could not add member'), 'error')
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Add member" subtitle="Register a member in this society">
+    <Modal open={open} onClose={onClose} title="Add person" subtitle="Register someone your society serves">
       <form onSubmit={submit} className="space-y-3.5">
+        <div role="tablist" className="inline-flex rounded-full border border-line bg-paper p-1">
+          {([['member', 'Member'], ['non_member', 'Non-member']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={form.kind === k}
+              onClick={() => set('kind', k)}
+              className={`rounded-full px-3.5 py-1 text-sm font-semibold transition ${form.kind === k ? 'bg-green text-paper' : 'text-muted hover:text-ink'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {nonMember && (
+          <p className="rounded-lg bg-sand-deep px-3 py-2 text-xs text-muted">
+            Someone your society serves who has not joined. They can borrow on
+            loan products open to non-members, save, use the app and receive
+            announcements — but hold no shares, cannot vote or hold office, and
+            receive no dividends. You can convert them to a member later.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Member no.">
-            <input required value={form.member_no} onChange={(e) => set('member_no', e.target.value)} className="input" placeholder="IMC-0123" />
+          <Field label={nonMember ? 'Reference no.' : 'Member no.'}>
+            <input required value={form.member_no} onChange={(e) => set('member_no', e.target.value)} className="input" placeholder={nonMember ? 'NM-0123' : 'IMC-0123'} />
           </Field>
-          <Field label="Share capital (₦)">
-            <input value={form.share_capital} onChange={(e) => set('share_capital', e.target.value)} className="input" inputMode="decimal" />
-          </Field>
+          {!nonMember && (
+            <Field label="Share capital (₦)">
+              <input value={form.share_capital} onChange={(e) => set('share_capital', e.target.value)} className="input" inputMode="decimal" />
+            </Field>
+          )}
         </div>
         <Field label="Full name">
           <input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} className="input" placeholder="Ada Nwosu" />
@@ -311,7 +343,7 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
             Cancel
           </Button>
           <Button type="submit" size="sm" loading={create.isPending}>
-            Add member
+            {nonMember ? 'Add non-member' : 'Add member'}
           </Button>
         </div>
       </form>

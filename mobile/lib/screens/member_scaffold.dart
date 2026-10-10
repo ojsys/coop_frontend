@@ -98,27 +98,33 @@ class _MemberScaffoldState extends State<MemberScaffold> {
             ),
           );
         }
+        // Non-members have no vote, so there is no Vote tab for them. Home,
+        // Savings and Pay keep their positions (0–2) either way, which is
+        // what the home tab's shortcuts navigate to.
+        final isMember = s.membership?.isMember ?? true;
         final tabs = [
           HomeTab(api: widget.api, session: s, onNavigate: _go),
           SavingsTab(api: widget.api, membership: s.membership),
           ContributeTab(api: widget.api, membership: s.membership, onDone: () => _go(0)),
-          VoteTab(api: widget.api, membership: s.membership),
+          if (isMember) VoteTab(api: widget.api, membership: s.membership),
           ProfileTab(api: widget.api, session: s, onSignOut: widget.onSignOut),
         ];
+        final index = _index < tabs.length ? _index : 0;
 
         return Scaffold(
-          body: IndexedStack(index: _index, children: tabs),
+          body: IndexedStack(index: index, children: tabs),
           bottomNavigationBar: NavigationBar(
-            selectedIndex: _index,
+            selectedIndex: index,
             onDestinationSelected: _go,
             backgroundColor: AppColors.card,
             indicatorColor: AppColors.green50,
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.savings_outlined), selectedIcon: Icon(Icons.savings), label: 'Savings'),
-              NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: 'Pay'),
-              NavigationDestination(icon: Icon(Icons.how_to_vote_outlined), selectedIcon: Icon(Icons.how_to_vote), label: 'Vote'),
-              NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+            destinations: [
+              const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+              const NavigationDestination(icon: Icon(Icons.savings_outlined), selectedIcon: Icon(Icons.savings), label: 'Savings'),
+              const NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: 'Pay'),
+              if (isMember)
+                const NavigationDestination(icon: Icon(Icons.how_to_vote_outlined), selectedIcon: Icon(Icons.how_to_vote), label: 'Vote'),
+              const NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
             ],
           ),
         );

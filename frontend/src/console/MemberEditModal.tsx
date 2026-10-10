@@ -22,6 +22,7 @@ export function MemberEditModal({
 }
 
 function MemberEditForm({ member, onClose }: { member: Member; onClose: () => void }) {
+  const isMember = member.kind !== 'non_member'
   const update = useUpdateMember()
   const { data: roles = [] } = useRoles()
   const toast = useToast()
@@ -64,9 +65,8 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
         full_name: form.full_name,
         phone: form.phone,
         member_no: form.member_no,
-        role: form.role ? Number(form.role) : null,
+        ...(isMember ? { role: form.role ? Number(form.role) : null, share_capital: form.share_capital } : {}),
         status: form.status,
-        share_capital: form.share_capital,
         date_of_birth: form.date_of_birth || null,
         gender: form.gender,
         occupation: form.occupation,
@@ -99,16 +99,24 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Role">
-            <Select
-              value={form.role}
-              onChange={(e) => set('role', e.target.value)}
-              options={[
-                { value: '', label: 'No role' },
-                ...roles.map((r) => ({ value: String(r.id), label: r.name })),
-              ]}
-            />
-          </Field>
+          {/* Offices and shares are for members; a non-member's record keeps
+              neither (the server refuses both). Convert them first. */}
+          {isMember ? (
+            <Field label="Role">
+              <Select
+                value={form.role}
+                onChange={(e) => set('role', e.target.value)}
+                options={[
+                  { value: '', label: 'No role' },
+                  ...roles.map((r) => ({ value: String(r.id), label: r.name })),
+                ]}
+              />
+            </Field>
+          ) : (
+            <Field label="Type">
+              <input disabled value="Non-member" className="input disabled:opacity-70" />
+            </Field>
+          )}
           <Field label="Status">
             <Select
               value={form.status}
@@ -122,9 +130,11 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
             />
           </Field>
         </div>
-        <Field label="Share capital (₦)">
-          <input inputMode="decimal" value={form.share_capital} onChange={(e) => set('share_capital', e.target.value)} className="input" />
-        </Field>
+        {isMember && (
+          <Field label="Share capital (₦)">
+            <input inputMode="decimal" value={form.share_capital} onChange={(e) => set('share_capital', e.target.value)} className="input" />
+          </Field>
+        )}
 
         <details className="rounded-lg border border-line bg-paper px-3.5 py-2.5">
           <summary className="cursor-pointer text-[13px] font-medium text-ink-soft">KYC & personal details</summary>

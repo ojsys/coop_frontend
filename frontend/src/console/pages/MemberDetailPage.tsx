@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMember, useMemberStatement, useMemberDocuments, useSavingsGoals, useSavingsProducts, useWithdrawals } from '@/api/hooks'
-import { useUploadMemberPhoto, useUploadMemberDocument, useDeleteMemberDocument, useSavingsGoalsCrud, useRequestWithdrawal } from '@/api/mutations'
+import { useUploadMemberPhoto, useUploadMemberDocument, useDeleteMemberDocument, useSavingsGoalsCrud, useRequestWithdrawal, useMembersCrud } from '@/api/mutations'
 import { MemberEditModal } from '../MemberEditModal'
 import { session } from '@/api/session'
 import { useAuth } from '@/auth/AuthContext'
@@ -9,7 +9,7 @@ import { Card } from '@/ui/Card'
 import { Button } from '@/ui/Button'
 import { Icon } from '@/ui/Icon'
 import { Avatar } from '@/ui/Avatar'
-import { StatusPill } from '@/ui/Badge'
+import { Badge, StatusPill } from '@/ui/Badge'
 import { StatTile } from '@/ui/StatTile'
 import { Table, type Column } from '@/ui/Table'
 import { QueryState } from '@/ui/QueryState'
@@ -30,6 +30,18 @@ export function MemberDetailPage() {
   // control to an office-holder who would only get a 403.
   const { activeMembership } = useAuth()
   const canPayOut = activeMembership?.is_privileged ?? false
+  const convert = useMembersCrud().action
+  const toast = useToast()
+
+  async function convertToMember() {
+    if (!member) return
+    try {
+      await convert.mutateAsync({ id: member.id, action: 'convert-to-member' })
+      toast(`${member.full_name} is now a member — record their share capital to give them dividends and a vote`)
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not convert'), 'error')
+    }
+  }
 
   function downloadPdf() {
     fetch(`/api/v1/reports/statement-pdf/?membership=${id}`, {
@@ -72,11 +84,14 @@ export function MemberDetailPage() {
                   <div>
                     <div className="font-display text-lg font-semibold text-ink">{member.full_name}</div>
                     <div className="font-mono text-xs text-muted-2">{member.member_no}</div>
-                    <div className="mt-1"><StatusPill status={member.status} /></div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <StatusPill status={member.status} />
+                      {member.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2.5 text-sm">
-                  <Row icon="badge" label={member.role_name ?? 'Member'} />
+                  <Row icon="badge" label={member.kind === 'non_member' ? 'Non-member — no vote, shares or dividends' : (member.role_name ?? 'Member')} />
                   <Row icon="call" label={member.phone || '—'} />
                   <Row icon="mail" label={member.email} />
                   <Row icon="event" label={member.joined_at ? `Joined ${longDate(member.joined_at)}` : 'Join date not set'} />
@@ -85,6 +100,13 @@ export function MemberDetailPage() {
                   <Button variant="secondary" size="sm" icon="edit" className="flex-1" onClick={() => setEditOpen(true)}>Edit</Button>
                   <Button variant="secondary" size="sm" icon="download" className="flex-1" onClick={downloadPdf}>Statement</Button>
                 </div>
+                {/* The same record carries on — loans, savings, history — so
+                    converting is a one-step decision, not a re-registration. */}
+                {canPayOut && member.kind === 'non_member' && (
+                  <Button size="sm" icon="how_to_reg" className="mt-2 w-full" loading={convert.isPending} onClick={convertToMember}>
+                    Convert to member
+                  </Button>
+                )}
               </Card>
 
               <div className="grid grid-cols-2 gap-3">

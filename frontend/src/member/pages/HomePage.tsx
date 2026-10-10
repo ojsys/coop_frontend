@@ -14,7 +14,10 @@ export function HomePage() {
   const { data: resolutions = [] } = useResolutions()
   const [shareInfo, setShareInfo] = useState(false)
 
-  const openVotes = resolutions.filter((r) => r.status === 'open').length
+  // Someone the society serves who has not joined: no vote, no shares, no
+  // dividends — so none of those are offered.
+  const isMember = activeMembership?.kind !== 'non_member'
+  const openVotes = isMember ? resolutions.filter((r) => r.status === 'open').length : 0
   const recent = statement?.lines?.slice(0, 4) ?? []
 
   return (
@@ -37,9 +40,10 @@ export function HomePage() {
             {naira(statement?.savings_balance ?? 0)}
           </div>
           <div className="mt-1 font-mono text-[11px] text-green-200">
-            {activeMembership?.member_no} · {activeMembership?.role_name ?? 'Member'}
+            {activeMembership?.member_no} · {isMember ? (activeMembership?.role_name ?? 'Member') : 'Non-member'}
           </div>
 
+          {isMember && (
           <button
             onClick={() => setShareInfo(true)}
             className="mt-3 flex w-full items-center gap-2 rounded-xl bg-[#0b4f3a] px-3 py-2 text-left transition active:scale-[0.99]"
@@ -55,6 +59,7 @@ export function HomePage() {
             </div>
             <span className="text-[11px] text-green-200">What's this?</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -79,7 +84,9 @@ export function HomePage() {
         <div className="grid grid-cols-3 gap-3 rounded-2xl border border-line bg-card p-3 shadow-soft">
           <Action to="/app/contribute" icon="add_circle" label="Contribute" />
           <Action to="/app/savings" icon="receipt_long" label="Statement" />
-          <Action to="/app/vote" icon="how_to_vote" label="Vote" />
+          {isMember
+            ? <Action to="/app/vote" icon="how_to_vote" label="Vote" />
+            : <Action to="/app/loans" icon="request_quote" label="Loans" />}
         </div>
       </div>
 
@@ -89,7 +96,7 @@ export function HomePage() {
         <div className="grid grid-cols-3 gap-3">
           <FinanceCard to="/app/loans" icon="request_quote" label="Loans" />
           <FinanceCard to="/app/savings-goals" icon="flag" label="Savings goals" />
-          <FinanceCard to="/app/dividends" icon="savings" label="Dividends" />
+          {isMember && <FinanceCard to="/app/dividends" icon="savings" label="Dividends" />}
         </div>
       </div>
 

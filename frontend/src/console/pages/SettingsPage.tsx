@@ -34,7 +34,7 @@ import { useHasFeature } from '@/auth/planFeatures'
 import { PlanFeatureNote } from '@/auth/PlanFeatureNote'
 import { apiErrorMessage } from '@/lib/apiError'
 import { LocationSelect, CoopTypeSelect } from '@/ui/StateLGASelect'
-import { naira } from '@/lib/format'
+import { naira, longDate } from '@/lib/format'
 import type { Cooperative, Role } from '@/api/types'
 
 // Permission catalogue shown in the role editor (mirrors accounts.models.Role).
@@ -49,10 +49,6 @@ const PERMISSIONS: { slug: string; label: string; privileged?: boolean }[] = [
   { slug: 'ledger.post', label: 'Post to the ledger', privileged: true },
   { slug: 'ledger.reconcile', label: 'Reconcile payments', privileged: true },
 ]
-
-const TIER_LABEL: Record<string, string> = {
-  small: 'Small', medium: 'Medium', large: 'Large',
-}
 
 export function SettingsPage() {
   const canBrand = useHasFeature('custom_branding')
@@ -154,12 +150,14 @@ export function SettingsPage() {
                 {coop.data?.name ?? activeMembership?.cooperative_name}
               </div>
               <div className="text-[13px] text-muted">
-                {coop.data ? `${TIER_LABEL[coop.data.tier] ?? coop.data.tier} plan · ${coop.data.base_currency}` : '—'}
+                {coop.data ? `${activeMembership?.plan?.name ? `${activeMembership.plan.name} plan` : 'No plan yet'} · ${coop.data.base_currency}` : '—'}
                 {coop.data?.state ? ` · ${coop.data.state}` : ''}
               </div>
             </div>
           </div>
         </Card>
+
+        <SubscriptionCard />
 
         <Card>
           <CardHeader
@@ -349,9 +347,7 @@ function ProfileModal({ open, onClose, coop }: { open: boolean; onClose: () => v
     state: coop.state ?? '',
     lga: coop.lga ?? '',
     base_currency: coop.base_currency,
-    tier: coop.tier,
     brand_color: coop.brand_color,
-    member_cap: String(coop.member_cap),
     contact_email: coop.contact_email ?? '',
     contact_phone: coop.contact_phone ?? '',
     contact_address: coop.contact_address ?? '',
@@ -373,9 +369,7 @@ function ProfileModal({ open, onClose, coop }: { open: boolean; onClose: () => v
         state: form.state,
         lga: form.lga,
         base_currency: form.base_currency,
-        tier: form.tier,
         brand_color: form.brand_color,
-        member_cap: Number(form.member_cap),
         contact_email: form.contact_email,
         contact_phone: form.contact_phone,
         contact_address: form.contact_address,
@@ -394,20 +388,7 @@ function ProfileModal({ open, onClose, coop }: { open: boolean; onClose: () => v
         <Field label="Society name">
           <input required value={form.name} onChange={(e) => set('name', e.target.value)} className="input" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <CoopTypeSelect value={form.coop_type} onChange={(v) => set('coop_type', v)} />
-          <Field label="Plan tier">
-            <Select
-              value={form.tier}
-              onChange={(e) => set('tier', e.target.value)}
-              options={[
-                { value: 'small', label: 'Small' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'large', label: 'Large' },
-              ]}
-            />
-          </Field>
-        </div>
+        <CoopTypeSelect value={form.coop_type} onChange={(v) => set('coop_type', v)} />
         <LocationSelect
           country={form.country}
           state={form.state}
@@ -416,12 +397,9 @@ function ProfileModal({ open, onClose, coop }: { open: boolean; onClose: () => v
           onState={(v) => set('state', v)}
           onLga={(v) => set('lga', v)}
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Currency">
             <input value={form.base_currency} onChange={(e) => set('base_currency', e.target.value)} className="input" maxLength={3} />
-          </Field>
-          <Field label="Member cap">
-            <input inputMode="numeric" value={form.member_cap} onChange={(e) => set('member_cap', e.target.value)} className="input" />
           </Field>
           <Field label="Brand colour" hint={canBrand ? undefined : 'Not in your plan'}>
             <input type="color" disabled={!canBrand} value={form.brand_color} onChange={(e) => set('brand_color', e.target.value)} className="input h-[38px] p-1 disabled:opacity-50" />
@@ -822,5 +800,54 @@ function CollectionAccountCard({
         </Modal>
       )}
     </Card>
+  )
+}
+
+/**
+ * The society's subscription, as billing sees it. Replaces the size label and
+ * the "member cap" the society used to set for itself, neither of which billing
+ * used: the plan follows the member band, counting every active person on the
+ * register — members and non-members.
+ */
+function SubscriptionCard() {
+  const { activeMembership } = useAuth()
+  const plan = activeMembership?.plan
+  if (!plan) return null
+  const per = plan.billing_cycle === 'annual' ? 'year' : 'month'
+  const top = plan.max_members ?? 0
+  const used = plan.members_counted ?? 0
+
+  return (
+    <Card>
+      <CardHeader title="Subscription" subtitle="Your plan follows the number of active people on your register" />
+      {plan.name ? (
+        <div className="space-y-2 text-sm">
+          <Row label="Plan" value={`${plan.name}${plan.band_label ? ` · ${plan.band_label}` : ''}`} />
+          {plan.cycle_amount && <Row label="Price" value={`${naira(plan.cycle_amount)} per ${per}`} />}
+          <Row
+            label="People on your register"
+            value={top > 0 ? `${used.toLocaleString()} of ${top.toLocaleString()}` : used.toLocaleString()}
+            tone={top > 0 && used > top ? 'text-danger' : undefined}
+          />
+          {plan.renews_on && <Row label={plan.status === 'trial' ? 'Free trial ends' : 'Renews'} value={longDate(plan.renews_on)} />}
+          {plan.grace_until && <Row label="Every feature included until" value={longDate(plan.grace_until)} />}
+          <p className="pt-1 text-xs text-muted-2">
+            Counts members and non-members alike.{' '}
+            <a href="/#pricing" className="text-green hover:underline">See plans and prices</a>
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-muted">Not on a plan yet — the platform team assigns one when your society goes live.</p>
+      )}
+    </Card>
+  )
+}
+
+function Row({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted">{label}</span>
+      <span className={`font-medium ${tone ?? 'text-ink'}`}>{value}</span>
+    </div>
   )
 }

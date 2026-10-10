@@ -3,7 +3,6 @@ import { SidebarShell, type NavItem } from '@/ui/SidebarShell'
 import { GreenCard } from '@/ui/GreenCard'
 import { CoopSwitcher } from './CoopSwitcher'
 import { useAuth } from '@/auth/AuthContext'
-import { useCooperative, useDashboard } from '@/api/hooks'
 import { usePendingJoinRequestCount } from '@/api/signup'
 import { num, shortDate } from '@/lib/format'
 
@@ -31,19 +30,16 @@ const NAV: NavItem[] = [
 ]
 
 function PlanCard() {
-  const { activeCooperativeId, activeMembership } = useAuth()
-  // The subscription plan, not the size label: the label carries no price and
-  // no features, and showing it here read as though it were the plan.
+  const { activeMembership } = useAuth()
+  // The subscription as billing sees it: the plan, its member band, and the
+  // active people counted against it (members and non-members alike). The
+  // society's own "member cap" and size label used to stand in for this and
+  // disagreed with what was invoiced.
   const plan = activeMembership?.plan
-  // These were hardcoded to the demo seed's figures (1,240 of 5,000), so every
-  // real cooperative was shown a membership count it did not have. The count is
-  // computed server-side; the cap and tier are the cooperative's own plan.
-  const { data: coop } = useCooperative(activeCooperativeId ?? undefined)
-  const { data: dash } = useDashboard()
-
-  const used = dash?.total_members
-  const cap = coop?.member_cap
-  const known = used != null && cap != null && cap > 0
+  const used = plan?.members_counted
+  const top = plan?.max_members ?? 0
+  const known = used != null
+  const over = known && top > 0 && used > top
 
   return (
     <GreenCard>
@@ -56,14 +52,25 @@ function PlanCard() {
         </div>
       )}
       <div className="mt-1 text-[13px] text-paper">
-        {known ? `${num(used)} / ${num(cap)} members used` : 'Loading…'}
+        {!known
+          ? 'Loading…'
+          : top > 0
+            ? `${num(used)} / ${num(top)} members`
+            : `${num(used)} members${plan?.band_label ? ` · ${plan.band_label}` : ''}`}
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#093f2f]">
-        <div
-          className="h-full rounded-full bg-gold"
-          style={{ width: known ? `${Math.min(100, (used / cap) * 100)}%` : '0%' }}
-        />
-      </div>
+      {top > 0 && (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#093f2f]">
+          <div
+            className={`h-full rounded-full ${over ? 'bg-danger' : 'bg-gold'}`}
+            style={{ width: `${Math.min(100, ((used ?? 0) / top) * 100)}%` }}
+          />
+        </div>
+      )}
+      {over && (
+        <div className="mt-1.5 text-[11px] text-green-100">
+          More than your plan's {plan?.band_label ?? 'band'} — contact us about the next plan.
+        </div>
+      )}
     </GreenCard>
   )
 }

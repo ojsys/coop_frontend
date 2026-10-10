@@ -506,6 +506,7 @@ class Membership {
     required this.roleName,
     required this.shareCapital,
     this.features,
+    this.kind = 'member',
   });
   final int id;
   final int cooperativeId;
@@ -522,6 +523,11 @@ class Membership {
 
   bool hasFeature(String key) => features?.contains(key) ?? true;
 
+  /// 'member', or 'non_member' for someone the society serves who has not
+  /// joined: no vote, no shares, no dividends.
+  final String kind;
+  bool get isMember => kind != 'non_member';
+
   factory Membership.fromJson(Map<String, dynamic> j) {
     final plan = j['plan'] as Map<String, dynamic>?;
     return Membership(
@@ -532,6 +538,7 @@ class Membership {
       roleSlug: j['role_slug'] as String?,
       roleName: j['role_name'] as String?,
       shareCapital: double.tryParse('${j['share_capital']}') ?? 0,
+      kind: j['kind'] as String? ?? 'member',
       features: plan?['features'] == null
           ? null
           : List<String>.from(plan!['features'] as List),

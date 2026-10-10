@@ -28,6 +28,10 @@ const TABS: Tab[] = [
 //     column on the paper canvas (a proper responsive web app, not a toy phone).
 export function MemberShell({ children }: { children: ReactNode }) {
   const { user, activeMembership, logout } = useAuth()
+  // Non-members have no vote; the tab would only lead to a refusal.
+  const tabs = activeMembership?.kind === 'non_member'
+    ? TABS.filter((t) => t.to !== '/app/vote')
+    : TABS
 
   return (
     <div className="flex min-h-screen bg-paper">
@@ -54,7 +58,7 @@ export function MemberShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="mt-6 flex-1 space-y-1">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}
@@ -114,7 +118,7 @@ export function MemberShell({ children }: { children: ReactNode }) {
 
         {/* Bottom tab bar — phones only */}
         <nav className="fixed inset-x-0 bottom-0 flex items-center justify-around border-t border-line bg-card/95 px-2 pb-5 pt-2 backdrop-blur md:hidden">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}

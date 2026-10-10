@@ -74,6 +74,9 @@ class _HomeTabState extends State<HomeTab> {
   Widget _content(_Data data) {
     final user = widget.session.user;
     final m = widget.session.membership;
+    // Someone the society serves who has not joined: no vote, no shares, no
+    // dividends — so none of those are offered.
+    final isMember = m?.isMember ?? true;
     final lines = data.statement?.lines ?? [];
 
     return ListView(
@@ -159,13 +162,16 @@ class _HomeTabState extends State<HomeTab> {
                               fontWeight: FontWeight.w800)),
                       const SizedBox(height: 2),
                       Text(
-                          'Member ${m?.memberNo ?? ''} · ${m?.roleName ?? 'Member'}',
+                          isMember
+                              ? 'Member ${m?.memberNo ?? ''} · ${m?.roleName ?? 'Member'}'
+                              : 'Non-member ${m?.memberNo ?? ''}',
                           style: const TextStyle(
                               color: Color(0xFFCFE3D9), fontSize: 12)),
                       const SizedBox(height: 16),
                       Row(
                         children: [
                           _heroStat('This month', naira(_thisMonth(data.statement))),
+                          if (isMember) ...[
                           const SizedBox(width: 10),
                           _heroStat('Share capital', naira(m?.shareCapital ?? 0),
                               info:
@@ -176,6 +182,7 @@ class _HomeTabState extends State<HomeTab> {
                                   'society simply holds for you and you can '
                                   'withdraw. Share capital is usually returned '
                                   'only when you leave the cooperative.'),
+                          ],
                         ],
                       ),
                     ],
@@ -195,7 +202,13 @@ class _HomeTabState extends State<HomeTab> {
             const SizedBox(width: 10),
             _quickAction(Icons.receipt_long_outlined, 'Statement', () => widget.onNavigate(1)),
             const SizedBox(width: 10),
-            _quickAction(Icons.how_to_vote_outlined, 'Vote', () => widget.onNavigate(3)),
+            isMember
+                ? _quickAction(Icons.how_to_vote_outlined, 'Vote',
+                    () => widget.onNavigate(3))
+                : _quickAction(Icons.request_quote_outlined, 'Loans',
+                    () => _open(LoansScreen(
+                        api: widget.api,
+                        membership: widget.session.membership))),
           ],
         ),
 
@@ -220,13 +233,15 @@ class _HomeTabState extends State<HomeTab> {
                     canEdit: widget.session.membership
                             ?.hasFeature('savings_plans') ??
                         true))),
-            const SizedBox(width: 10),
-            _financeCard(Icons.savings_outlined, 'Dividends',
-                () => _open(DividendsScreen(api: widget.api))),
+            if (isMember) ...[
+              const SizedBox(width: 10),
+              _financeCard(Icons.savings_outlined, 'Dividends',
+                  () => _open(DividendsScreen(api: widget.api))),
+            ],
           ],
         ),
 
-        if (data.openVotes > 0) ...[
+        if (isMember && data.openVotes > 0) ...[
           const SizedBox(height: 12),
           GestureDetector(
             onTap: () => widget.onNavigate(3),
