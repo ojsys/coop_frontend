@@ -95,10 +95,14 @@ into `keytool`.
 ### Build and name it
 
 ```bash
-flutter build apk --release
+flutter build apk --release --target-platform android-arm,android-arm64
 mkdir -p dist && cp build/app/outputs/flutter-apk/app-release.apk \
   dist/CooperativeOS.apk
 ```
+
+`--target-platform` leaves out the x86_64 engine, which only emulators and a
+few Chromebooks use: ~33 MB instead of ~51 MB, for members downloading over
+mobile data. Keep `android-arm` — cheaper handsets are still 32-bit.
 
 The file name is what members see in their downloads, so it is renamed from
 Flutter's `app-release.apk`. `mobile/dist/` is git-ignored: a 22 MB binary does
