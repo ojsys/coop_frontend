@@ -58,7 +58,7 @@ android {
     defaultConfig {
         // Permanent once published: this is the app's identity on Google Play
         // and in its store URL, and it can never be changed afterwards.
-        applicationId = "co.startupripple.cooperativeos"
+        applicationId = "com.mycooperativeos.app"
 
         // Android 7.0 — the floor for Play's automatic protection, which
         // rejects a bundle below 24 at upload. Pinned deliberately: raising it
