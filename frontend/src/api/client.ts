@@ -47,6 +47,13 @@ const PUBLIC_PATHS = [
   '/signup',
   '/forgot-password',
   '/reset-password',
+  // A cooperative's invite link. Most people who follow one have used the app
+  // before, so a stale token is the common case here, not the exception.
+  '/join',
+  '/billing/pay',
+  '/privacy',
+  '/terms',
+  '/legal',
 ]
 
 function onPublicPage(): boolean {

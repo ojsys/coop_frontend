@@ -233,11 +233,26 @@ class _ProfileTabState extends State<ProfileTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.fullName,
-                        style: const TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700)),
+                    Row(children: [
+                      Flexible(
+                        child: Text(p.fullName,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: AppColors.ink,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                      if (p.isVerified) ...[
+                        const SizedBox(width: 5),
+                        Tooltip(
+                          message: p.verifiedVia == 'officer'
+                              ? 'Verified by an officer of the cooperative'
+                              : 'Verified — profile complete with a means of ID',
+                          child: const Icon(Icons.verified,
+                              size: 19, color: AppColors.green),
+                        ),
+                      ],
+                    ]),
                     Text('${p.memberNo} · ${p.roleName ?? 'Member'}',
                         style: const TextStyle(
                             color: AppColors.muted2, fontSize: 12)),
@@ -250,6 +265,61 @@ class _ProfileTabState extends State<ProfileTab> {
             ],
           ),
         ),
+
+        // The way to the badge. Hidden once verified, and when an officer has
+        // withdrawn it — completing the profile would not bring it back.
+        if (!p.isVerified &&
+            !p.verificationWithdrawn &&
+            p.verificationMissing.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.green50,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Icon(Icons.verified, size: 18, color: AppColors.green),
+                    SizedBox(width: 6),
+                    Text('Get verified',
+                        style: TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                  const SizedBox(height: 4),
+                  const Text(
+                      'Complete your profile and upload a means of ID to get '
+                      'the verified tick. Still needed:',
+                      style: TextStyle(color: AppColors.ink, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final m in p.verificationMissing)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(m,
+                              style: const TextStyle(
+                                  color: AppColors.ink, fontSize: 12)),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
 
         // KYC
         _labelWithAction('KYC & PERSONAL', 'Edit', () => _editKyc(p)),

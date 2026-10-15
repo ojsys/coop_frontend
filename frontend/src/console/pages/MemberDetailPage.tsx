@@ -10,6 +10,7 @@ import { Button } from '@/ui/Button'
 import { Icon } from '@/ui/Icon'
 import { Avatar } from '@/ui/Avatar'
 import { Badge, StatusPill } from '@/ui/Badge'
+import { VerifiedBadge } from '@/ui/VerifiedBadge'
 import { StatTile } from '@/ui/StatTile'
 import { Table, type Column } from '@/ui/Table'
 import { QueryState } from '@/ui/QueryState'
@@ -82,7 +83,10 @@ export function MemberDetailPage() {
                 <div className="flex items-center gap-3">
                   <PhotoBlock member={member} />
                   <div>
-                    <div className="font-display text-lg font-semibold text-ink">{member.full_name}</div>
+                    <div className="flex items-center gap-1.5 font-display text-lg font-semibold text-ink">
+                      {member.full_name}
+                      <VerifiedBadge via={member.verified_via} size={19} />
+                    </div>
                     <div className="font-mono text-xs text-muted-2">{member.member_no}</div>
                     <div className="mt-1 flex items-center gap-1.5">
                       <StatusPill status={member.status} />
@@ -114,6 +118,7 @@ export function MemberDetailPage() {
                 <StatTile label="Share capital" value={naira(member.share_capital)} icon="paid" iconTone="gold" />
               </div>
 
+              <VerificationCard member={member} canVerify={canPayOut} />
               <KycCard member={member} />
               <SavingsGoalsCard membershipId={member.id} />
               <WithdrawalsCard member={member} canPayOut={canPayOut} />
@@ -233,6 +238,66 @@ function SavingsGoalsCard({ membershipId }: { membershipId: number }) {
             </div>
           </form>
         </Modal>
+      )}
+    </Card>
+  )
+}
+
+/** The verified badge: how it was earned, what's missing, and the officer's
+ *  override in either direction. */
+function VerificationCard({ member, canVerify }: { member: Member; canVerify: boolean }) {
+  const { action } = useMembersCrud()
+  const toast = useToast()
+  const missing = member.verification_missing
+
+  async function set(act: 'verify' | 'unverify') {
+    try {
+      await action.mutateAsync({ id: member.id, action: act })
+      toast(act === 'verify' ? `${member.full_name} is verified` : 'Verification removed')
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not update verification'), 'error')
+    }
+  }
+
+  let status: string
+  if (member.verified_via === 'officer') {
+    status = `Verified by ${member.verified_by_name ?? 'an officer'}${member.verified_at ? ` on ${longDate(member.verified_at)}` : ''}.`
+  } else if (member.verified_via === 'profile') {
+    status = 'Verified automatically — profile complete with a means of ID.'
+  } else if (member.verification_withdrawn) {
+    status = `Verification removed by ${member.verified_by_name ?? 'an officer'}. It stays off until an officer verifies them again.`
+  } else {
+    status = 'Not verified yet. They are verified automatically once these are on file, or you can verify them now.'
+  }
+
+  return (
+    <Card>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="font-display text-[15px] font-semibold text-ink">Verification</h3>
+        {member.is_verified ? <VerifiedBadge via={member.verified_via} label /> : <Badge>Not verified</Badge>}
+      </div>
+      <p className="text-[13px] leading-relaxed text-muted">{status}</p>
+      {!member.is_verified && !member.verification_withdrawn && missing.length > 0 && (
+        <ul className="mt-2.5 space-y-1 text-[13px] text-ink-soft">
+          {missing.map((m) => (
+            <li key={m} className="flex items-center gap-2">
+              <Icon name="radio_button_unchecked" size={15} className="text-muted-2" /> {m}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canVerify && (
+        <div className="mt-3">
+          {member.is_verified ? (
+            <Button size="sm" variant="secondary" className="w-full" loading={action.isPending} onClick={() => set('unverify')}>
+              Remove verification
+            </Button>
+          ) : (
+            <Button size="sm" icon="verified" className="w-full" loading={action.isPending} onClick={() => set('verify')}>
+              Verify member
+            </Button>
+          )}
+        </div>
       )}
     </Card>
   )

@@ -693,6 +693,9 @@ class MemberProfile {
     required this.bankCode,
     required this.bankAccountNo,
     required this.documentCount,
+    required this.verifiedVia,
+    required this.verificationMissing,
+    required this.verificationWithdrawn,
   });
   final int id;
   final String fullName;
@@ -722,6 +725,19 @@ class MemberProfile {
   final String bankAccountNo;
   final int documentCount;
 
+  /// The verified badge: "officer", "profile" (complete profile + a means of
+  /// ID), or null when not verified.
+  final String? verifiedVia;
+
+  /// What's still needed to be verified automatically.
+  final List<String> verificationMissing;
+
+  /// An officer took the badge away — completing the profile won't bring it
+  /// back, so the checklist is not shown.
+  final bool verificationWithdrawn;
+
+  bool get isVerified => verifiedVia != null;
+
   factory MemberProfile.fromJson(Map<String, dynamic> j) => MemberProfile(
         id: j['id'] as int,
         fullName: j['full_name'] as String? ?? '',
@@ -743,6 +759,12 @@ class MemberProfile {
         bankCode: j['bank_code'] as String? ?? '',
         bankAccountNo: j['bank_account_no'] as String? ?? '',
         documentCount: j['document_count'] as int? ?? 0,
+        verifiedVia: j['verified_via'] as String?,
+        verificationMissing:
+            ((j['verification_missing'] as List?) ?? const [])
+                .map((e) => '$e')
+                .toList(),
+        verificationWithdrawn: j['verification_withdrawn'] as bool? ?? false,
       );
 }
 

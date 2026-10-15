@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { VerifiedBadge } from '@/ui/VerifiedBadge'
 import { useMembers } from '@/api/hooks'
 import { useAuth } from '@/auth/AuthContext'
 import { useCreateMember, useBulkImportMembers, type ImportResult } from '@/api/mutations'
@@ -66,6 +67,7 @@ export function MembersPage() {
           <div>
             <div className="flex items-center gap-2 font-medium text-ink">
               {m.full_name}
+              <VerifiedBadge via={m.verified_via} size={16} />
               {m.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
             </div>
             <div className="font-mono text-xs text-muted-2">{m.member_no}</div>

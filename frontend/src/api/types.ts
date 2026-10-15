@@ -97,6 +97,15 @@ export interface Member {
   bank_code: string
   bank_account_no: string
   document_count: number
+  /** The verified badge — see accounts.Membership.is_verified. */
+  is_verified: boolean
+  verified_via: 'officer' | 'profile' | null
+  /** What's still needed to be verified automatically; empty when complete. */
+  verification_missing: string[]
+  /** An officer took the badge away; it stays off until one restores it. */
+  verification_withdrawn: boolean
+  verified_by_name: string | null
+  verified_at: string | null
 }
 
 export interface ApprovalRequest {
@@ -118,6 +127,8 @@ export interface ApprovalRequest {
   requested_by: number | null
   requested_by_name: string | null
   decided_by_name: string | null
+  /** Decided by whoever submitted it — only a sole Secretary can. */
+  self_decided: boolean
   decided_at: string | null
   note: string
   created_at: string

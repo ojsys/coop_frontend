@@ -11,6 +11,7 @@ import {
 import { MemberHeader } from '../MemberShell'
 import { Icon } from '@/ui/Icon'
 import { Avatar } from '@/ui/Avatar'
+import { VerifiedBadge } from '@/ui/VerifiedBadge'
 import { Button } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
@@ -66,12 +67,35 @@ export function ProfilePage() {
             <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
           </div>
           <div>
-            <div className="font-display text-lg font-semibold text-ink">{user?.full_name}</div>
+            <div className="flex items-center gap-1.5 font-display text-lg font-semibold text-ink">
+              {user?.full_name}
+              <VerifiedBadge via={p?.verified_via} size={19} />
+            </div>
             <div className="font-mono text-xs text-muted-2">
               {activeMembership?.member_no} · {user?.phone || user?.email}
             </div>
           </div>
         </div>
+
+        {/* The way to the badge, in the member's own words. Hidden once
+            verified, and when an officer has withdrawn it — completing the
+            profile would not bring it back, so the list would mislead. */}
+        {p && !p.is_verified && !p.verification_withdrawn && p.verification_missing.length > 0 && (
+          <div className="mt-3 rounded-2xl border border-green-100 bg-green-50 p-4">
+            <div className="flex items-center gap-2 font-display text-[14px] font-semibold text-ink">
+              <Icon name="verified" size={18} className="text-green" /> Get verified
+            </div>
+            <p className="mt-1 text-[13px] text-ink-soft">
+              Complete your profile and upload a means of ID to get the verified tick.
+              Still needed:
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {p.verification_missing.map((m) => (
+                <li key={m} className="rounded-full bg-card px-2.5 py-0.5 text-[12px] text-ink-soft">{m}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* KYC */}

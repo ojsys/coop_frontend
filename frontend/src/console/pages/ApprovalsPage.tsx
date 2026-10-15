@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useApprovals, useLoans, useDividends } from '@/api/hooks'
+import { useApprovalPolicy, useApprovals, useLoans, useDividends } from '@/api/hooks'
 import { useApprovalsCrud } from '@/api/mutations'
 import { useToast } from '@/ui/toast'
 import { PageHeader } from '@/ui/PageHeader'
@@ -17,6 +17,7 @@ const tone = (s: string) => (s === 'approved' ? 'green' : s === 'rejected' ? 'da
 
 export function ApprovalsPage() {
   const { data: approvals = [], isLoading, isError } = useApprovals()
+  const soleSecretary = useApprovalPolicy().data?.sole_secretary ?? false
   const { action } = useApprovalsCrud()
   const toast = useToast()
   const [open, setOpen] = useState(false)
@@ -41,10 +42,17 @@ export function ApprovalsPage() {
         actions={<Button size="sm" icon="add" onClick={() => setOpen(true)}>Send for approval</Button>}
       />
 
-      <div className="mb-4 rounded-lg border border-green-100 bg-green-50 p-3.5 text-[13px] text-ink-soft">
-        <Icon name="info" size={16} className="mr-1 inline text-green" />
-        Dual control: whoever <strong>submits</strong> a request cannot approve it — a different officer must. On approval, the action (loan disbursement, dividend posting…) executes automatically.
-      </div>
+      {soleSecretary ? (
+        <div className="mb-4 rounded-lg border border-gold/30 bg-gold-50 p-3.5 text-[13px] text-ink-soft">
+          <Icon name="person" size={16} className="mr-1 inline text-gold" />
+          You are your society's <strong>only officer</strong>, so as Secretary you can approve your own requests. Each one is recorded in the audit log as self-approved. Once you add another officer — a Treasurer or Chairperson under Members — a different officer will have to approve instead.
+        </div>
+      ) : (
+        <div className="mb-4 rounded-lg border border-green-100 bg-green-50 p-3.5 text-[13px] text-ink-soft">
+          <Icon name="info" size={16} className="mr-1 inline text-green" />
+          Dual control: whoever <strong>submits</strong> a request cannot approve it — a different officer must. On approval, the action (loan disbursement, dividend posting…) executes automatically.
+        </div>
+      )}
 
       <QueryState isLoading={isLoading} isError={isError}>
         <div className="space-y-3">
@@ -61,6 +69,7 @@ export function ApprovalsPage() {
                   <div className="mt-1 text-xs text-muted-2">
                     Requested by {a.requested_by_name ?? '—'} · {dateTime(a.created_at)}
                     {a.decided_by_name && ` · decided by ${a.decided_by_name}`}
+                    {a.self_decided && ' (self-approved as sole officer)'}
                   </div>
                 </div>
                 {a.status === 'pending' && (

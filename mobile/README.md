@@ -219,6 +219,42 @@ the code:
 | Users can request deletion | Yes — see the URL above |
 | App collects data from children | No; not directed at under-18s |
 
+**Release name and notes.** The release name is for you only — members never
+see it — so make it the version, which is what you'll search for when a
+problem report comes in. Play caps it at 50 characters. The notes are what
+members read under "What's new"; Play caps them at 500 characters per
+language, and they go in the box with the language tags as below.
+
+Current release (`1.1.13+15`, the first on Play):
+
+Release name:
+
+```
+1.1.13 (15) — First Play Store release
+```
+
+Release notes:
+
+```
+<en-US>
+Welcome to CooperativeOS — your cooperative, in your pocket.
+
+• See your savings and share capital, and every contribution as it posts
+• Pay dues securely by card, bank transfer or USSD
+• Apply for a loan, follow your repayment schedule and repay in the app
+• Set savings goals and watch your progress
+• Vote on your society's resolutions and see your dividends
+• Download your statement any time
+
+Your money stays in your cooperative's own account. We keep the record, never the funds.
+</en-US>
+```
+
+For later releases: name them `<versionName> (<versionCode>)`, and write
+the notes as what a member can now do or what got fixed, in their words, not
+the commit log. Replace this block each release rather than appending, so it
+always shows the one being uploaded.
+
 ### Permissions — the full declared set
 
 The release manifest declares exactly one permission: **`INTERNET`**. Verify it

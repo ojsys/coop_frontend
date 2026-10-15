@@ -568,6 +568,19 @@ export function useApprovals(status?: string) {
   })
 }
 
+/** Whether the signed-in officer is the society's only officer and its
+ *  Secretary — the one case where they may approve their own requests. */
+export function useApprovalPolicy() {
+  const coop = useCoopKey()
+  return useQuery({
+    queryKey: ['approvals', coop, 'policy'],
+    queryFn: async () => {
+      const { data } = await api.get<{ sole_secretary: boolean }>('/approvals/policy/')
+      return data
+    },
+  })
+}
+
 export function useLoanProducts() {
   const coop = useCoopKey()
   return useQuery({
