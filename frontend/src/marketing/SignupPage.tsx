@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { PlatformMark } from '@/ui/PlatformMark'
 import { Icon } from '@/ui/Icon'
 import { Field } from '@/ui/Field'
@@ -9,6 +9,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { usePublicBranding, usePublicSiteContent } from '@/api/public'
 import {
   useApplyForCooperative,
+  useJoinLink,
   useRequestToJoin,
   useSocietySearch,
   type PublicSociety,
@@ -36,7 +37,10 @@ const REASSURANCES = [
 ]
 
 export function SignupPage() {
-  const [mode, setMode] = useState<Mode>('choose')
+  // /join/<code> is a society's invite link: straight to the member form, with
+  // the society already chosen.
+  const { code } = useParams<{ code: string }>()
+  const [mode, setMode] = useState<Mode>(code ? 'member' : 'choose')
   const { data: branding } = usePublicBranding()
   const { data: cms } = usePublicSiteContent()
   const productName = branding?.name || 'CooperativeOS'
@@ -111,7 +115,7 @@ export function SignupPage() {
 
           {mode === 'choose' && <Chooser onPick={setMode} />}
           {mode === 'society' && <CooperativeApplication onBack={() => setMode('choose')} />}
-          {mode === 'member' && <MemberJoin onBack={() => setMode('choose')} />}
+          {mode === 'member' && <MemberJoin joinCode={code} onBack={() => setMode('choose')} />}
 
           <p className="mt-8 hidden border-t border-line pt-5 text-sm text-muted lg:block">
             Already have an account?{' '}
@@ -474,10 +478,19 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
 }
 
 // ── A member joining ────────────────────────────────────────────────────────
-function MemberJoin({ onBack }: { onBack: () => void }) {
+function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => void }) {
   const join = useRequestToJoin()
   const [query, setQuery] = useState('')
-  const [society, setSociety] = useState<PublicSociety | null>(null)
+  const [picked, setPicked] = useState<PublicSociety | null>(null)
+  // The invite link's society stands until the visitor picks another.
+  const [useInvite, setUseInvite] = useState(Boolean(joinCode))
+  const invite = useJoinLink(useInvite ? joinCode : undefined)
+  const invited = useInvite ? invite.data ?? null : null
+  const society = picked ?? invited
+  const setSociety = (s: PublicSociety | null) => {
+    setUseInvite(false)
+    setPicked(s)
+  }
   const results = useSocietySearch(query)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -515,9 +528,23 @@ function MemberJoin({ onBack }: { onBack: () => void }) {
     <div>
       <FormHeader
         onBack={onBack}
-        title="Join a cooperative"
-        intro="Find your cooperative, then tell them who you are."
+        title={invited ? `Join ${invited.name}` : 'Join a cooperative'}
+        intro={
+          invited
+            ? 'Tell them who you are — an officer will review your request.'
+            : 'Find your cooperative, then tell them who you are.'
+        }
       />
+
+      {useInvite && invite.isError && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-line bg-card px-3.5 py-3 text-sm text-ink-soft">
+          <Icon name="link_off" size={18} className="mt-0.5 shrink-0 text-muted" />
+          <span>
+            This invite link isn’t active any more. Ask an officer for a new
+            one, or search for your cooperative below.
+          </span>
+        </div>
+      )}
 
       <form onSubmit={submit} className="rounded-card border border-line bg-card p-6 shadow-soft">
         <div className="space-y-4">
@@ -530,9 +557,17 @@ function MemberJoin({ onBack }: { onBack: () => void }) {
             interactive
             htmlFor="coop-search"
           >
-            {society ? (
+            {useInvite && invite.isLoading ? (
+              <p className="rounded-md border border-line bg-card px-3.5 py-2.5 text-sm text-muted">
+                Opening your invite…
+              </p>
+            ) : society ? (
               <div className="flex items-center gap-3 rounded-md border border-green bg-green-50 px-3.5 py-2.5">
-                <Icon name="check_circle" size={18} className="shrink-0 text-green" />
+                {invited?.logo ? (
+                  <img src={invited.logo} alt="" className="size-8 shrink-0 rounded object-contain" />
+                ) : (
+                  <Icon name="check_circle" size={18} className="shrink-0 text-green" />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-ink">{society.name}</div>
                   {(society.lga || society.state) && (

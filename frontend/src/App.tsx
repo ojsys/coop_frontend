@@ -45,6 +45,7 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       {/* Public: reached from an email link, so never behind RequireAuth. */}
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/join/:code" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       {/* Reached from the subscription invoice email. Public by necessity: the

@@ -58,6 +58,29 @@ export function useSocietySearch(query: string) {
   })
 }
 
+/** The society behind an invite link (/join/<code>). 404 — an unknown code, a
+ *  link the officers switched off or a society that isn't live — is not
+ *  retried: it won't start resolving on the second attempt. */
+export interface JoinLinkSociety extends PublicSociety {
+  logo: string | null
+  brand_color: string
+}
+
+export function useJoinLink(code: string | undefined) {
+  return useQuery({
+    queryKey: ['public-join-link', code],
+    queryFn: async () => {
+      const { data } = await api.get<JoinLinkSociety>(
+        `/public/join/${encodeURIComponent(code!)}/`,
+      )
+      return data
+    },
+    enabled: Boolean(code),
+    retry: false,
+    staleTime: 5 * 60_000,
+  })
+}
+
 export function useApplyForCooperative() {
   return useMutation({
     mutationFn: async (input: CooperativeApplication) => {

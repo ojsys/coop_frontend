@@ -91,21 +91,25 @@ body {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* Shared form control */
-.input {
-  width: 100%;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-line);
-  background: var(--color-paper);
-  padding: 0.55rem 0.75rem;
-  font-size: 0.875rem;
-  color: var(--color-ink);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.input:focus {
-  border-color: var(--color-green);
-  box-shadow: 0 0 0 3px rgba(11, 79, 58, 0.12);
+/* Shared form control. In the components layer so utilities beside it win —
+   unlayered, it outranked them all, and the pl-10 that clears a search
+   icon was silently dropped. */
+@layer components {
+  .input {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-line);
+    background: var(--color-paper);
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus {
+    border-color: var(--color-green);
+    box-shadow: 0 0 0 3px rgba(11, 79, 58, 0.12);
+  }
 }
 
 /* Tabular figures for money/ledger columns */

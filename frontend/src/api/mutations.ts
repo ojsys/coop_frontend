@@ -416,6 +416,8 @@ export interface UpdateCooperativeInput {
   contact_phone?: string
   contact_address?: string
   statement_footer?: string
+  join_code?: string
+  join_link_enabled?: boolean
 }
 
 export function useUpdateCooperative() {

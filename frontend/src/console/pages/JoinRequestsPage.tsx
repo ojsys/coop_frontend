@@ -9,6 +9,9 @@ import { QueryState } from '@/ui/QueryState'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { dateTime } from '@/lib/format'
+import { useAuth } from '@/auth/AuthContext'
+import { useCooperative } from '@/api/hooks'
+import { useUpdateCooperative } from '@/api/mutations'
 import {
   useJoinRequests,
   useJoinRequestDecision,
@@ -37,6 +40,8 @@ export function JoinRequestsPage() {
         title="Join requests"
         subtitle="People asking to be admitted to your society"
       />
+
+      <InviteLinkCard />
 
       <div className="mb-4 flex flex-wrap items-center gap-1 rounded-lg border border-line bg-card p-1">
         {TABS.map((t) => (
@@ -238,6 +243,209 @@ function DeclineModal({
           </Button>
           <Button type="submit" size="sm" variant="danger" loading={reject.isPending}>
             Decline
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+/** Turns whatever an officer types into something that works in a link:
+ *  "Ìmọ̀lè Farmers!" → "imole-farmers". The server validates the same rule. */
+function toJoinCode(raw: string) {
+  return raw
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+/, '')
+    .slice(0, 50)
+}
+
+function joinUrl(code: string) {
+  return `${window.location.origin}/join/${code}`
+}
+
+/** The society's invite link: the members it is sent to land on the join form
+ *  with the society already chosen, instead of having to search for it. */
+function InviteLinkCard() {
+  const { activeCooperativeId } = useAuth()
+  const { data: coop } = useCooperative(activeCooperativeId ?? undefined)
+  const update = useUpdateCooperative()
+  const toast = useToast()
+  const [editing, setEditing] = useState(false)
+
+  if (!coop?.join_code) return null
+  const url = joinUrl(coop.join_code)
+  const enabled = coop.join_link_enabled ?? true
+  const shareText = `Join ${coop.name} on our members' app: ${url}`
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast('Invite link copied')
+    } catch {
+      toast('Could not copy — select the link and copy it instead', 'error')
+    }
+  }
+
+  async function share() {
+    try {
+      await navigator.share({ title: `Join ${coop!.name}`, text: shareText })
+    } catch {
+      // Dismissing the share sheet rejects too; nothing to report.
+    }
+  }
+
+  async function toggle() {
+    try {
+      await update.mutateAsync({ id: coop!.id, join_link_enabled: !enabled })
+      toast(enabled ? 'Invite link switched off' : 'Invite link switched on')
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not update the invite link.'), 'error')
+    }
+  }
+
+  return (
+    <Card className="mb-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 font-display text-[15px] font-semibold text-ink">
+            <Icon name="link" size={19} className="text-green" />
+            Invite link
+            {!enabled && (
+              <span className="rounded-full bg-sand-deep px-2 py-0.5 text-[11px] font-medium text-muted">
+                Off
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[13px] text-muted">
+            {enabled
+              ? 'Share this with your members. It opens the join form with your society already chosen — their request still comes here for you to admit.'
+              : 'Switched off — the link shows as inactive and members have to search for your society instead.'}
+          </p>
+        </div>
+        <Button size="sm" variant="ghost" loading={update.isPending} onClick={toggle}>
+          {enabled ? 'Switch off' : 'Switch on'}
+        </Button>
+      </div>
+
+      {enabled && (
+        <>
+          <div className="mt-4 flex items-center gap-2 rounded-md border border-line bg-sand px-3.5 py-2.5">
+            <code className="min-w-0 flex-1 select-all truncate font-mono text-[13px] text-ink">
+              {url}
+            </code>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" icon="content_copy" onClick={copy}>
+              Copy link
+            </Button>
+            {'share' in navigator && (
+              <Button size="sm" variant="secondary" icon="share" onClick={share}>
+                Share
+              </Button>
+            )}
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-line bg-card px-3 py-1.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
+            >
+              <Icon name="chat" size={17} /> WhatsApp
+            </a>
+            <Button size="sm" variant="ghost" icon="edit" onClick={() => setEditing(true)}>
+              Customise
+            </Button>
+          </div>
+        </>
+      )}
+
+      <CustomiseLinkModal
+        open={editing}
+        onClose={() => setEditing(false)}
+        cooperativeId={coop.id}
+        current={coop.join_code}
+      />
+    </Card>
+  )
+}
+
+function CustomiseLinkModal({
+  open,
+  onClose,
+  cooperativeId,
+  current,
+}: {
+  open: boolean
+  onClose: () => void
+  cooperativeId: number
+  current: string
+}) {
+  const update = useUpdateCooperative()
+  const toast = useToast()
+  const [code, setCode] = useState(current)
+  const [error, setError] = useState<string | null>(null)
+  const cleaned = code.replace(/-+$/, '')
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    try {
+      await update.mutateAsync({ id: cooperativeId, join_code: cleaned })
+      toast('Invite link updated')
+      onClose()
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not save that link.'))
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Customise invite link">
+      <form onSubmit={submit} className="space-y-4">
+        <Field
+          label="Link ending"
+          hint="Letters, numbers and hyphens — something easy to say at a meeting."
+        >
+          <input
+            required
+            autoFocus
+            minLength={3}
+            value={code}
+            className={inputClass}
+            onChange={(e) => setCode(toJoinCode(e.target.value))}
+            placeholder="imole-farmers"
+          />
+        </Field>
+
+        <div className="rounded-md bg-sand px-3.5 py-2.5 font-mono text-[13px] text-ink-soft">
+          {joinUrl(cleaned || '…')}
+        </div>
+
+        {cleaned !== current && (
+          <p className="text-[13px] leading-relaxed text-muted">
+            The old link stops working as soon as you save. Anyone you already
+            sent it to will need the new one.
+          </p>
+        )}
+
+        {error && (
+          <div className="flex items-start gap-2 rounded-md bg-danger-50 px-3 py-2 text-sm text-danger">
+            <Icon name="error" size={18} /> <span>{error}</span>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            loading={update.isPending}
+            disabled={cleaned.length < 3 || cleaned === current}
+          >
+            Save link
           </Button>
         </div>
       </form>

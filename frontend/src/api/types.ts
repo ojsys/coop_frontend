@@ -355,6 +355,9 @@ export interface Cooperative {
   contact_address?: string
   /** Replaces the default footer line on generated statements when set. */
   statement_footer?: string
+  /** The invite link is /join/<join_code>; officers choose the code. */
+  join_code?: string | null
+  join_link_enabled?: boolean
   created_at: string
 }
 
