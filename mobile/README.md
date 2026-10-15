@@ -137,7 +137,7 @@ identifies anyone, so there is no retention question to answer.
 |---|---|
 | `applicationId` | `co.startupripple.cooperativeos` — **permanent once published** |
 | `targetSdk` / `compileSdk` | **36**, pinned explicitly (not inherited from `flutter.*`) |
-| `minSdk` | 21 (Android 5.0), pinned |
+| `minSdk` | 24 (Android 7.0), pinned — the minimum Play automatic protection accepts |
 | `ndkVersion` | `27.0.12077973` — matches what all six Android plugins require |
 | Release signing | Reads `android/key.properties`; falls back to debug signing with a warning when absent |
 | `INTERNET` permission | Declared in the **main** manifest, so the release build has network access |

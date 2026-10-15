@@ -60,9 +60,11 @@ android {
         // and in its store URL, and it can never be changed afterwards.
         applicationId = "co.startupripple.cooperativeos"
 
-        // Android 5.0. Pinned deliberately: raising it silently cuts off the
-        // older handsets a cooperative's members are most likely to own.
-        minSdk = 21
+        // Android 7.0 — the floor for Play's automatic protection, which
+        // rejects a bundle below 24 at upload. Pinned deliberately: raising it
+        // further silently cuts off the older handsets a cooperative's members
+        // are most likely to own.
+        minSdk = 24
 
         // Must equal or trail compileSdk. See the note on compileSdk above —
         // Play's required level moves every August, so confirm this against the
