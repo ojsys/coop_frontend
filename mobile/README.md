@@ -225,12 +225,12 @@ problem report comes in. Play caps it at 50 characters. The notes are what
 members read under "What's new"; Play caps them at 500 characters per
 language, and they go in the box with the language tags as below.
 
-Current release (`1.1.13+15`, the first on Play):
+Current release (`1.1.14+16`):
 
 Release name:
 
 ```
-1.1.13 (15) — First Play Store release
+1.1.14 (16) — Verified badge
 ```
 
 Release notes:
@@ -239,14 +239,16 @@ Release notes:
 <en-US>
 Welcome to CooperativeOS — your cooperative, in your pocket.
 
-• See your savings and share capital, and every contribution as it posts
-• Pay dues securely by card, bank transfer or USSD
-• Apply for a loan, follow your repayment schedule and repay in the app
+New: complete your profile and upload a means of ID to get the verified tick.
+
+• See your savings, share capital and every contribution
+• Pay dues by card, bank transfer or USSD
+• Apply for a loan, follow repayments and repay in the app
 • Set savings goals and watch your progress
-• Vote on your society's resolutions and see your dividends
+• Vote on resolutions and see your dividends
 • Download your statement any time
 
-Your money stays in your cooperative's own account. We keep the record, never the funds.
+Your money stays in your cooperative's own account.
 </en-US>
 ```
 
