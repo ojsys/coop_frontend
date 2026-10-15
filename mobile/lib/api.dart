@@ -696,6 +696,10 @@ class MemberProfile {
     required this.verifiedVia,
     required this.verificationMissing,
     required this.verificationWithdrawn,
+    required this.verificationStatus,
+    required this.verificationNote,
+    required this.profilePercent,
+    required this.profileSteps,
   });
   final int id;
   final String fullName;
@@ -725,16 +729,23 @@ class MemberProfile {
   final String bankAccountNo;
   final int documentCount;
 
-  /// The verified badge: "officer", "profile" (complete profile + a means of
-  /// ID), or null when not verified.
+  /// "officer" when verified, otherwise null. Only an officer verifies.
   final String? verifiedVia;
 
-  /// What's still needed to be verified automatically.
+  /// Everything still needed before officers can review the member.
   final List<String> verificationMissing;
 
-  /// An officer took the badge away — completing the profile won't bring it
-  /// back, so the checklist is not shown.
+  /// An officer declined or withdrew it; see [verificationNote].
   final bool verificationWithdrawn;
+
+  /// incomplete → (profile done) awaiting → officer: verified | withdrawn.
+  final String verificationStatus;
+
+  /// The officer's reason when declining — what the member should fix.
+  final String verificationNote;
+
+  final int profilePercent;
+  final List<ProfileStep> profileSteps;
 
   bool get isVerified => verifiedVia != null;
 
@@ -765,6 +776,35 @@ class MemberProfile {
                 .map((e) => '$e')
                 .toList(),
         verificationWithdrawn: j['verification_withdrawn'] as bool? ?? false,
+        verificationStatus:
+            j['verification_status'] as String? ?? 'incomplete',
+        verificationNote: j['verification_note'] as String? ?? '',
+        profilePercent: j['profile_percent'] as int? ?? 0,
+        profileSteps: ((j['profile_steps'] as List?) ?? const [])
+            .map((s) => ProfileStep.fromJson(s as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// One step of completing the profile (details, contact, photo, ID).
+class ProfileStep {
+  const ProfileStep(
+      {required this.key,
+      required this.label,
+      required this.done,
+      required this.missing});
+  final String key;
+  final String label;
+  final bool done;
+  final List<String> missing;
+
+  factory ProfileStep.fromJson(Map<String, dynamic> j) => ProfileStep(
+        key: j['key'] as String? ?? '',
+        label: j['label'] as String? ?? '',
+        done: j['done'] as bool? ?? false,
+        missing: ((j['missing'] as List?) ?? const [])
+            .map((e) => '$e')
+            .toList(),
       );
 }
 

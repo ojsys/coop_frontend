@@ -31,7 +31,9 @@ export function ProfilePage() {
   const toast = useToast()
   const photoRef = useRef<HTMLInputElement>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const [docOpen, setDocOpen] = useState(false)
+  // The upload sheet's preset type; null when closed. The ID step opens it on
+  // "Means of ID", because an ID filed under another type does not count.
+  const [docType, setDocType] = useState<string | null>(null)
 
   async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -77,24 +79,13 @@ export function ProfilePage() {
           </div>
         </div>
 
-        {/* The way to the badge, in the member's own words. Hidden once
-            verified, and when an officer has withdrawn it — completing the
-            profile would not bring it back, so the list would mislead. */}
-        {p && !p.is_verified && !p.verification_withdrawn && p.verification_missing.length > 0 && (
-          <div className="mt-3 rounded-2xl border border-green-100 bg-green-50 p-4">
-            <div className="flex items-center gap-2 font-display text-[14px] font-semibold text-ink">
-              <Icon name="verified" size={18} className="text-green" /> Get verified
-            </div>
-            <p className="mt-1 text-[13px] text-ink-soft">
-              Complete your profile and upload a means of ID to get the verified tick.
-              Still needed:
-            </p>
-            <ul className="mt-2 flex flex-wrap gap-1.5">
-              {p.verification_missing.map((m) => (
-                <li key={m} className="rounded-full bg-card px-2.5 py-0.5 text-[12px] text-ink-soft">{m}</li>
-              ))}
-            </ul>
-          </div>
+        {p && (
+          <ProfileProgress
+            profile={p}
+            onEdit={() => setEditOpen(true)}
+            onPhoto={() => photoRef.current?.click()}
+            onUploadId={() => setDocType('id')}
+          />
         )}
       </div>
 
@@ -113,7 +104,7 @@ export function ProfilePage() {
       </Section>
 
       {/* Documents */}
-      <Section title="Documents" action={{ label: 'Upload', onClick: () => setDocOpen(true) }}>
+      <Section title="Documents" action={{ label: 'Upload', onClick: () => setDocType('id') }}>
         <div className="space-y-2">
           {documents.length === 0 && (
             <p className="rounded-2xl border border-line bg-card px-4 py-5 text-center text-sm text-muted">No documents uploaded.</p>
@@ -181,7 +172,7 @@ export function ProfilePage() {
       </Section>
 
       {editOpen && p && <EditKycModal profile={p} onClose={() => setEditOpen(false)} />}
-      {docOpen && <UploadDocModal onClose={() => setDocOpen(false)} />}
+      {docType && <UploadDocModal initialType={docType} onClose={() => setDocType(null)} />}
     </div>
   )
 }
@@ -272,10 +263,10 @@ function EditKycModal({ profile, onClose }: { profile: Member; onClose: () => vo
   )
 }
 
-function UploadDocModal({ onClose }: { onClose: () => void }) {
+function UploadDocModal({ initialType, onClose }: { initialType: string; onClose: () => void }) {
   const upload = useUploadMyDocument()
   const toast = useToast()
-  const [docType, setDocType] = useState('id')
+  const [docType, setDocType] = useState(initialType)
   const [label, setLabel] = useState('')
   const [file, setFile] = useState<File | null>(null)
 
@@ -292,10 +283,13 @@ function UploadDocModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal open onClose={onClose} title="Upload document" subtitle="Attach a KYC or supporting file">
       <form onSubmit={submit} className="space-y-3.5">
-        <Field label="Type">
+        <Field
+          label="Type"
+          hint={docType === 'id' ? "NIN slip, voter's card, driver's licence or international passport — a clear photo or scan." : undefined}
+        >
           <Select value={docType} onChange={(e) => setDocType(e.target.value)} options={[
             { value: 'id', label: 'Means of ID' },
-            { value: 'passport', label: 'Passport photo' },
+            { value: 'passport', label: 'Passport photograph' },
             { value: 'proof_of_address', label: 'Proof of address' },
             { value: 'form', label: 'Membership form' },
             { value: 'other', label: 'Other' },
@@ -309,5 +303,86 @@ function UploadDocModal({ onClose }: { onClose: () => void }) {
         </div>
       </form>
     </Modal>
+  )
+}
+
+/** The road to the verified tick, one step at a time. Each unfinished step
+ *  opens the form that finishes it, so nobody has to guess which field or
+ *  document type is missing. */
+function ProfileProgress({
+  profile: p,
+  onEdit,
+  onPhoto,
+  onUploadId,
+}: {
+  profile: Member
+  onEdit: () => void
+  onPhoto: () => void
+  onUploadId: () => void
+}) {
+  if (p.verification_status === 'verified') return null
+
+  const action: Record<string, { label: string; onClick: () => void }> = {
+    details: { label: 'Add details', onClick: onEdit },
+    contact: { label: 'Add details', onClick: onEdit },
+    photo: { label: 'Add photo', onClick: onPhoto },
+    id: { label: 'Upload ID', onClick: onUploadId },
+  }
+
+  const awaiting = p.verification_status === 'awaiting'
+  const declined = p.verification_status === 'withdrawn'
+
+  return (
+    <div className="mt-3 rounded-2xl border border-line bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 font-display text-[14px] font-semibold text-ink">
+          <Icon name={awaiting ? 'hourglass_top' : 'verified'} size={18} className={awaiting ? 'text-gold' : 'text-green'} />
+          {awaiting ? 'Awaiting verification' : 'Complete your profile'}
+        </div>
+        <span className="font-mono text-[13px] font-semibold text-ink">{p.profile_percent}%</span>
+      </div>
+      <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-sand-deep">
+        <div className={`h-full rounded-full transition-all ${awaiting ? 'bg-gold' : 'bg-green'}`} style={{ width: `${p.profile_percent}%` }} />
+      </div>
+
+      {declined && (
+        <div className="mt-3 rounded-xl bg-danger-50 px-3 py-2.5 text-[13px] text-ink-soft">
+          <strong className="text-danger">An officer couldn’t verify you yet.</strong>{' '}
+          {p.verification_note ? `They said: “${p.verification_note}”. ` : ''}
+          Fix it below and it goes straight back to them.
+        </div>
+      )}
+
+      {awaiting ? (
+        <p className="mt-3 text-[13px] leading-relaxed text-muted">
+          Your profile is 100% complete. An officer of your cooperative will check your details and ID, and you’ll be notified when you’re verified.
+        </p>
+      ) : (
+        <ol className="mt-3 space-y-2">
+          {p.profile_steps.map((step, n) => (
+            <li key={step.key} className="flex items-center gap-3">
+              <span
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${
+                  step.done ? 'bg-green text-paper' : 'border border-line text-muted'
+                }`}
+              >
+                {step.done ? <Icon name="check" size={15} /> : n + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className={`text-sm ${step.done ? 'text-muted line-through decoration-muted-2' : 'font-medium text-ink'}`}>{step.label}</div>
+                {!step.done && step.missing.length > 1 && (
+                  <div className="truncate text-xs text-muted-2">Needs {step.missing.join(', ').toLowerCase()}</div>
+                )}
+              </div>
+              {!step.done && (
+                <button onClick={action[step.key].onClick} className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-[12px] font-semibold text-green transition hover:bg-green-100">
+                  {action[step.key].label}
+                </button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   )
 }

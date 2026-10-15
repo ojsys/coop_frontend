@@ -82,16 +82,18 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
-  Future<void> _uploadDocument() async {
-    final type = await showModalBottomSheet<String>(
+  Future<void> _uploadDocument({String? presetType}) async {
+    final type = presetType ?? await showModalBottomSheet<String>(
       context: context,
       backgroundColor: AppColors.card,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: const [
-            _DocTypeTile('id', 'Means of ID'),
-            _DocTypeTile('passport', 'Passport photo'),
+            _DocTypeTile('id', 'Means of ID',
+                "NIN slip, voter's card, driver's licence or passport"),
+            _DocTypeTile('passport', 'Passport photograph',
+                'A picture of you'),
             _DocTypeTile('proof_of_address', 'Proof of address'),
             _DocTypeTile('form', 'Membership form'),
             _DocTypeTile('other', 'Other'),
@@ -116,6 +118,154 @@ class _ProfileTabState extends State<ProfileTab> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Widget _progressCard(MemberProfile p) {
+    final awaiting = p.verificationStatus == 'awaiting';
+    final declined = p.verificationStatus == 'withdrawn';
+    final accent = awaiting ? AppColors.gold : AppColors.green;
+    VoidCallback? actionFor(String key) => _busy
+        ? null
+        : switch (key) {
+            'photo' => _uploadPhoto,
+            'id' => () => _uploadDocument(presetType: 'id'),
+            _ => () => _editKyc(p),
+          };
+    String actionLabel(String key) => switch (key) {
+          'photo' => 'Add photo',
+          'id' => 'Upload ID',
+          _ => 'Add details',
+        };
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(awaiting ? Icons.hourglass_top : Icons.verified,
+                  size: 18, color: accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                    awaiting
+                        ? 'Awaiting verification'
+                        : 'Complete your profile',
+                    style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700)),
+              ),
+              Text('${p.profilePercent}%',
+                  style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: p.profilePercent / 100,
+                minHeight: 8,
+                backgroundColor: AppColors.line,
+                color: accent,
+              ),
+            ),
+            if (declined) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                    "An officer couldn't verify you yet. "
+                    "${p.verificationNote.isNotEmpty ? 'They said: "${p.verificationNote}". ' : ''}"
+                    'Fix it below and it goes straight back to them.',
+                    style:
+                        const TextStyle(color: AppColors.inkSoft, fontSize: 13)),
+              ),
+            ],
+            const SizedBox(height: 12),
+            if (awaiting)
+              const Text(
+                  'Your profile is 100% complete. An officer of your '
+                  "cooperative will check your details and ID, and you'll be "
+                  "notified when you're verified.",
+                  style: TextStyle(color: AppColors.muted, fontSize: 13))
+            else
+              for (final (n, step) in p.profileSteps.indexed)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: step.done ? AppColors.green : null,
+                        border: step.done
+                            ? null
+                            : Border.all(color: AppColors.line),
+                      ),
+                      child: step.done
+                          ? const Icon(Icons.check,
+                              size: 15, color: Colors.white)
+                          : Text('${n + 1}',
+                              style: const TextStyle(
+                                  color: AppColors.muted, fontSize: 12)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(step.label,
+                              style: TextStyle(
+                                color: step.done
+                                    ? AppColors.muted
+                                    : AppColors.ink,
+                                fontSize: 14,
+                                fontWeight: step.done
+                                    ? FontWeight.w400
+                                    : FontWeight.w600,
+                                decoration: step.done
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              )),
+                          if (!step.done && step.missing.length > 1)
+                            Text(
+                                'Needs ${step.missing.join(', ').toLowerCase()}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: AppColors.muted2, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    if (!step.done)
+                      TextButton(
+                        onPressed: actionFor(step.key),
+                        style: TextButton.styleFrom(
+                          backgroundColor: AppColors.green50,
+                          foregroundColor: AppColors.green,
+                          visualDensity: VisualDensity.compact,
+                          shape: const StadiumBorder(),
+                        ),
+                        child: Text(actionLabel(step.key),
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                  ]),
+                ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteDoc(MemberDocument d) async {
@@ -266,60 +416,9 @@ class _ProfileTabState extends State<ProfileTab> {
           ),
         ),
 
-        // The way to the badge. Hidden once verified, and when an officer has
-        // withdrawn it — completing the profile would not bring it back.
-        if (!p.isVerified &&
-            !p.verificationWithdrawn &&
-            p.verificationMissing.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.green50,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(children: [
-                    Icon(Icons.verified, size: 18, color: AppColors.green),
-                    SizedBox(width: 6),
-                    Text('Get verified',
-                        style: TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700)),
-                  ]),
-                  const SizedBox(height: 4),
-                  const Text(
-                      'Complete your profile and upload a means of ID to get '
-                      'the verified tick. Still needed:',
-                      style: TextStyle(color: AppColors.ink, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final m in p.verificationMissing)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text(m,
-                              style: const TextStyle(
-                                  color: AppColors.ink, fontSize: 12)),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+        // The road to the verified tick, one step at a time. Each unfinished
+        // step opens the form that finishes it.
+        if (p.verificationStatus != 'verified') _progressCard(p),
 
         // KYC
         _labelWithAction('KYC & PERSONAL', 'Edit', () => _editKyc(p)),
@@ -527,12 +626,14 @@ class _ProfileTabState extends State<ProfileTab> {
 }
 
 class _DocTypeTile extends StatelessWidget {
-  const _DocTypeTile(this.value, this.label);
+  const _DocTypeTile(this.value, this.label, [this.hint]);
   final String value;
   final String label;
+  final String? hint;
   @override
   Widget build(BuildContext context) => ListTile(
         title: Text(label),
+        subtitle: hint == null ? null : Text(hint!),
         onTap: () => Navigator.pop(context, value),
       );
 }

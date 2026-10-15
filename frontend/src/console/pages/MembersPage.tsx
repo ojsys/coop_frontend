@@ -21,7 +21,7 @@ import { naira } from '@/lib/format'
 import type { Member } from '@/api/types'
 
 const PAGE_SIZE = 10
-const FILTERS = ['all', 'active', 'arrears', 'suspended', 'non-members'] as const
+const FILTERS = ['all', 'active', 'arrears', 'suspended', 'non-members', 'to verify'] as const
 type Filter = (typeof FILTERS)[number]
 
 export function MembersPage() {
@@ -38,11 +38,14 @@ export function MembersPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<Member | null>(null)
 
+  const awaitingCount = members.filter((m) => m.verification_status === 'awaiting').length
+
   const filtered = useMemo(() => {
     let rows = members
     if (filter === 'active') rows = rows.filter((m) => m.status === 'active')
     if (filter === 'suspended') rows = rows.filter((m) => m.status === 'suspended')
     if (filter === 'non-members') rows = rows.filter((m) => m.kind === 'non_member')
+    if (filter === 'to verify') rows = rows.filter((m) => m.verification_status === 'awaiting')
     if (search) {
       const q = search.toLowerCase()
       rows = rows.filter(
@@ -68,6 +71,7 @@ export function MembersPage() {
             <div className="flex items-center gap-2 font-medium text-ink">
               {m.full_name}
               <VerifiedBadge via={m.verified_via} size={16} />
+              {m.verification_status === 'awaiting' && <Badge tone="gold">To verify</Badge>}
               {m.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
             </div>
             <div className="font-mono text-xs text-muted-2">{m.member_no}</div>
@@ -165,6 +169,9 @@ export function MembersPage() {
                 }`}
               >
                 {f}
+                {f === 'to verify' && awaitingCount > 0 && (
+                  <span className="ml-1.5 rounded-full bg-gold px-1.5 text-[11px] font-semibold text-paper">{awaitingCount}</span>
+                )}
               </button>
             ))}
           </div>

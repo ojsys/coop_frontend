@@ -97,15 +97,28 @@ export interface Member {
   bank_code: string
   bank_account_no: string
   document_count: number
-  /** The verified badge — see accounts.Membership.is_verified. */
+  /** The verified badge — only an officer gives it. */
   is_verified: boolean
-  verified_via: 'officer' | 'profile' | null
-  /** What's still needed to be verified automatically; empty when complete. */
+  verified_via: 'officer' | null
+  /** incomplete → (profile done) awaiting → officer: verified | withdrawn. */
+  verification_status: 'incomplete' | 'awaiting' | 'verified' | 'withdrawn'
+  /** The officer's reason when declining or withdrawing; shown to the member. */
+  verification_note: string
+  /** Everything still needed before officers can review; empty when complete. */
   verification_missing: string[]
+  profile_percent: number
+  profile_steps: ProfileStep[]
   /** An officer took the badge away; it stays off until one restores it. */
   verification_withdrawn: boolean
   verified_by_name: string | null
   verified_at: string | null
+}
+
+export interface ProfileStep {
+  key: 'details' | 'contact' | 'photo' | 'id'
+  label: string
+  done: boolean
+  missing: string[]
 }
 
 export interface ApprovalRequest {

@@ -243,43 +243,48 @@ function SavingsGoalsCard({ membershipId }: { membershipId: number }) {
   )
 }
 
-/** The verified badge: how it was earned, what's missing, and the officer's
- *  override in either direction. */
+/** The verified badge: where the member is on the way to it, and the
+ *  officer's decision once their profile is ready for review. */
 function VerificationCard({ member, canVerify }: { member: Member; canVerify: boolean }) {
   const { action } = useMembersCrud()
   const toast = useToast()
-  const missing = member.verification_missing
+  const [declining, setDeclining] = useState(false)
+  const [note, setNote] = useState('')
+  const status = member.verification_status
+  const by = member.verified_by_name ?? 'an officer'
+  const on = member.verified_at ? ` on ${longDate(member.verified_at)}` : ''
 
-  async function set(act: 'verify' | 'unverify') {
+  async function decide(act: 'verify' | 'unverify') {
     try {
-      await action.mutateAsync({ id: member.id, action: act })
-      toast(act === 'verify' ? `${member.full_name} is verified` : 'Verification removed')
+      await action.mutateAsync({ id: member.id, action: act, body: act === 'unverify' ? { note: note.trim() } : undefined })
+      toast(act === 'verify' ? `${member.full_name} is verified` : 'Sent back to the member with your note')
+      setDeclining(false)
+      setNote('')
     } catch (err) {
       toast(apiErrorMessage(err, 'Could not update verification'), 'error')
     }
   }
 
-  let status: string
-  if (member.verified_via === 'officer') {
-    status = `Verified by ${member.verified_by_name ?? 'an officer'}${member.verified_at ? ` on ${longDate(member.verified_at)}` : ''}.`
-  } else if (member.verified_via === 'profile') {
-    status = 'Verified automatically — profile complete with a means of ID.'
-  } else if (member.verification_withdrawn) {
-    status = `Verification removed by ${member.verified_by_name ?? 'an officer'}. It stays off until an officer verifies them again.`
-  } else {
-    status = 'Not verified yet. They are verified automatically once these are on file, or you can verify them now.'
-  }
+  const text = {
+    verified: `Verified by ${by}${on}.`,
+    awaiting: 'Profile complete and a means of ID uploaded. Check the ID under Documents against their details, then verify them — or decline with a note saying what to fix.',
+    withdrawn: `Declined by ${by}${on}${member.verification_note ? `: “${member.verification_note}”` : ''}. They’re back in the queue as soon as they update their profile.`,
+    incomplete: `Profile ${member.profile_percent}% complete. They’ll be ready for review once these are on file — or verify them now if you know them.`,
+  }[status]
 
   return (
     <Card>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="font-display text-[15px] font-semibold text-ink">Verification</h3>
-        {member.is_verified ? <VerifiedBadge via={member.verified_via} label /> : <Badge>Not verified</Badge>}
+        {status === 'verified' && <VerifiedBadge via={member.verified_via} label />}
+        {status === 'awaiting' && <Badge tone="gold" dot>Awaiting review</Badge>}
+        {status === 'withdrawn' && <Badge tone="danger">Declined</Badge>}
+        {status === 'incomplete' && <Badge>{member.profile_percent}% complete</Badge>}
       </div>
-      <p className="text-[13px] leading-relaxed text-muted">{status}</p>
-      {!member.is_verified && !member.verification_withdrawn && missing.length > 0 && (
+      <p className="text-[13px] leading-relaxed text-muted">{text}</p>
+      {status === 'incomplete' && (
         <ul className="mt-2.5 space-y-1 text-[13px] text-ink-soft">
-          {missing.map((m) => (
+          {member.verification_missing.map((m) => (
             <li key={m} className="flex items-center gap-2">
               <Icon name="radio_button_unchecked" size={15} className="text-muted-2" /> {m}
             </li>
@@ -287,18 +292,38 @@ function VerificationCard({ member, canVerify }: { member: Member; canVerify: bo
         </ul>
       )}
       {canVerify && (
-        <div className="mt-3">
-          {member.is_verified ? (
-            <Button size="sm" variant="secondary" className="w-full" loading={action.isPending} onClick={() => set('unverify')}>
-              Remove verification
-            </Button>
-          ) : (
-            <Button size="sm" icon="verified" className="w-full" loading={action.isPending} onClick={() => set('verify')}>
+        <div className="mt-3 flex gap-2">
+          {status !== 'verified' && (
+            <Button size="sm" icon="verified" className="flex-1" loading={action.isPending && !declining} onClick={() => decide('verify')}>
               Verify member
+            </Button>
+          )}
+          {(status === 'awaiting' || status === 'verified') && (
+            <Button size="sm" variant="secondary" className="flex-1" onClick={() => setDeclining(true)}>
+              {status === 'verified' ? 'Remove verification' : 'Decline'}
             </Button>
           )}
         </div>
       )}
+
+      <Modal
+        open={declining}
+        onClose={() => setDeclining(false)}
+        title={status === 'verified' ? 'Remove verification' : 'Decline verification'}
+        subtitle={member.full_name}
+      >
+        <form onSubmit={(e) => { e.preventDefault(); decide('unverify') }} className="space-y-4">
+          <Field label="What should they fix?" hint="Sent to the member. They go back into the queue once they update their profile.">
+            <textarea rows={3} required value={note} onChange={(e) => setNote(e.target.value)} className="input" placeholder="The ID photo is blurry — please upload a clearer one" />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => setDeclining(false)}>Cancel</Button>
+            <Button type="submit" size="sm" variant="danger" loading={action.isPending}>
+              {status === 'verified' ? 'Remove' : 'Decline'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </Card>
   )
 }
