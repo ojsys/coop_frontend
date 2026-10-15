@@ -229,28 +229,23 @@ problem report comes in. Play caps it at 50 characters. The notes are what
 members read under "What's new"; Play caps them at 500 characters per
 language, and they go in the box with the language tags as below.
 
-Current release (`1.1.14+16`):
+Current release (`1.1.15+17`):
 
 Release name:
 
 ```
-1.1.14 (16) — Verified badge
+1.1.15 (17) — Guided profile & verification
 ```
 
 Release notes:
 
 ```
 <en-US>
-Welcome to CooperativeOS — your cooperative, in your pocket.
-
-New: complete your profile and upload a means of ID to get the verified tick.
-
-• See your savings, share capital and every contribution
-• Pay dues by card, bank transfer or USSD
-• Apply for a loan, follow repayments and repay in the app
-• Set savings goals and watch your progress
-• Vote on resolutions and see your dividends
-• Download your statement any time
+What's new
+• Complete your profile step by step: a progress bar shows how far you are, and each step opens the right form
+• Uploading your ID is clearer: pick "Means of ID" for your NIN slip, voter's card, driver's licence or passport
+• Once your profile is complete, an officer reviews it and you're notified when you're verified
+• If an officer needs something fixed, you'll see their note on your profile
 
 Your money stays in your cooperative's own account.
 </en-US>
