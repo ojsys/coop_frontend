@@ -229,12 +229,12 @@ problem report comes in. Play caps it at 50 characters. The notes are what
 members read under "What's new"; Play caps them at 500 characters per
 language, and they go in the box with the language tags as below.
 
-Current release (`1.1.15+17`):
+Current release (`1.1.16+18`):
 
 Release name:
 
 ```
-1.1.15 (17) — Guided profile & verification
+1.1.16 (18) — Your data: download & delete
 ```
 
 Release notes:
@@ -242,10 +242,9 @@ Release notes:
 ```
 <en-US>
 What's new
-• Complete your profile step by step: a progress bar shows how far you are, and each step opens the right form
-• Uploading your ID is clearer: pick "Means of ID" for your NIN slip, voter's card, driver's licence or passport
-• Once your profile is complete, an officer reviews it and you're notified when you're verified
-• If an officer needs something fixed, you'll see their note on your profile
+• Download my data: get a copy of everything your cooperative holds about you in one file (Profile → Settings)
+• Delete my account: ask for your account and personal data to be deleted, and see anything to settle first. You can also ask at mycooperativeos.com/account/delete
+• Complete your profile step by step, then an officer verifies you
 
 Your money stays in your cooperative's own account.
 </en-US>

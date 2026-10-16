@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 import '../api.dart';
 import '../format.dart';
 import '../theme.dart';
@@ -268,6 +272,161 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
+  bool _exporting = false;
+
+  Future<void> _exportData() async {
+    setState(() => _exporting = true);
+    try {
+      final bytes = await widget.api.dataExport();
+      final dir = await getTemporaryDirectory();
+      final day = DateTime.now().toIso8601String().substring(0, 10);
+      final file = File('${dir.path}/my-data-$day.zip');
+      await file.writeAsBytes(bytes);
+      final result = await OpenFilex.open(file.path);
+      if (result.type != ResultType.done) {
+        _toast('No app here can open a .zip file. Sign in on the website and '
+            'use Profile → Download my data instead.');
+      }
+    } catch (e) {
+      _toast('$e');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    DeletionState state;
+    try {
+      state = await widget.api.deletionState();
+    } catch (e) {
+      _toast('$e');
+      return;
+    }
+    if (!mounted) return;
+    final reason = TextEditingController();
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Delete my account',
+                  style: TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              Text(
+                  state.isPending
+                      ? 'You asked on ${state.pendingSince!.substring(0, 10)}. '
+                          'An officer will settle anything outstanding and '
+                          "complete it within 30 days; we'll email you when "
+                          "it's done. You can cancel until then."
+                      : 'Deleted: your sign-in, contact details, date of '
+                          'birth, gender, address, occupation, next of kin, '
+                          'bank details, photo and documents.\n\n'
+                          'Kept by your cooperative: its financial records '
+                          '(ledger, contribution and loan history) under your '
+                          'member number only.\n\n'
+                          'An officer completes it within 30 days.',
+                  style:
+                      const TextStyle(color: AppColors.inkSoft, fontSize: 14)),
+              if (state.blockers.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('To be settled first',
+                          style: TextStyle(
+                              color: AppColors.ink,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      for (final b in state.blockers)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text('• $b',
+                              style: const TextStyle(
+                                  color: AppColors.inkSoft, fontSize: 13)),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => Navigator.pop(ctx, 'export'),
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Download a copy of my data first'),
+              ),
+              if (!state.isPending) ...[
+                const SizedBox(height: 4),
+                TextField(
+                  controller: reason,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                      labelText: 'Reason (optional)'),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(
+                        state.isPending ? 'Close' : 'Keep my account'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: state.isPending
+                            ? AppColors.green
+                            : AppColors.danger),
+                    onPressed: () => Navigator.pop(
+                        ctx, state.isPending ? 'cancel' : 'request'),
+                    child: Text(state.isPending
+                        ? 'Cancel my request'
+                        : 'Request deletion'),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+    final text = reason.text.trim();
+    reason.dispose();
+    try {
+      switch (action) {
+        case 'export':
+          await _exportData();
+        case 'request':
+          await widget.api.requestDeletion(text);
+          _toast("Request sent to your cooperative. We'll email you.");
+        case 'cancel':
+          await widget.api.cancelDeletion();
+          _toast('Deletion request cancelled');
+      }
+    } catch (e) {
+      _toast('$e');
+    }
+  }
+
   Future<void> _deleteDoc(MemberDocument d) async {
     try {
       await widget.api.deleteDocument(d.id);
@@ -496,6 +655,27 @@ class _ProfileTabState extends State<ProfileTab> {
                 trailing: const Icon(Icons.chevron_right,
                     color: AppColors.muted2),
                 onTap: () => _openPolicy('terms', 'Terms of use'),
+              ),
+              const Divider(height: 1),
+              // Your data, yours to take and to have deleted.
+              ListTile(
+                leading: const Icon(Icons.download_outlined,
+                    color: AppColors.muted),
+                title: Text(_exporting
+                    ? 'Preparing your data…'
+                    : 'Download my data'),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.muted2),
+                onTap: _exporting ? null : _exportData,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.person_remove_outlined,
+                    color: AppColors.muted),
+                title: const Text('Delete my account'),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.muted2),
+                onTap: _deleteAccount,
               ),
               const Divider(height: 1),
               ListTile(

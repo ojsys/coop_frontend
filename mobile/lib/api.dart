@@ -353,6 +353,25 @@ class Api {
 
   Future<void> deleteDocument(int id) async => _delete('/me/documents/$id/');
 
+  /// Everything held about the member, across every cooperative, as a zip.
+  Future<List<int>> dataExport() async {
+    final res =
+        await http.get(Uri.parse('$baseUrl/me/data-export/'), headers: _headers);
+    if (res.statusCode >= 400) {
+      throw ApiException('Could not prepare your data', res.statusCode);
+    }
+    return res.bodyBytes;
+  }
+
+  Future<DeletionState> deletionState() async =>
+      DeletionState.fromJson(await _get('/me/deletion-request/'));
+
+  Future<DeletionState> requestDeletion(String reason) async =>
+      DeletionState.fromJson(
+          await _post('/me/deletion-request/', {'reason': reason}));
+
+  Future<void> cancelDeletion() async => _delete('/me/deletion-request/');
+
   Future<List<LoanProduct>> loanProducts() async {
     final list = await _getList('/me/loan-products/');
     return list
@@ -1117,4 +1136,33 @@ class FeeQuote {
         fee: double.tryParse('${j['fee']}') ?? 0,
         total: double.tryParse('${j['total']}') ?? 0,
       );
+}
+
+
+/// Where a request to delete the account stands, and what must be settled
+/// (savings paid out, share capital returned, loans closed) before an officer
+/// can complete it.
+class DeletionState {
+  const DeletionState(
+      {required this.pendingSince, required this.blockers});
+
+  /// When the pending request was made, or null when there is none.
+  final String? pendingSince;
+  final List<String> blockers;
+
+  bool get isPending => pendingSince != null;
+
+  factory DeletionState.fromJson(Map<String, dynamic> j) {
+    final req = j['request'] as Map<String, dynamic>?;
+    return DeletionState(
+      pendingSince: req != null && req['status'] == 'pending'
+          ? req['created_at'] as String?
+          : null,
+      blockers: ((j['blockers'] as List?) ?? const []).map((b) {
+        final m = b as Map<String, dynamic>;
+        final coop = m['cooperative'] as String?;
+        return coop == null ? '${m['message']}' : '$coop: ${m['message']}';
+      }).toList(),
+    );
+  }
 }
