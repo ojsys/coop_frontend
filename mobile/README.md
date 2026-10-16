@@ -200,11 +200,12 @@ financial data:
 https://mycooperativeos.com/privacy
 ```
 
-**Data deletion** — Play requires a route for any app with sign-in. The same
-page documents it; point the Console at the section:
+**Data deletion** — Play requires a route for any app with sign-in that works
+without the app installed. This page takes the request by email and confirms
+it with an emailed link (**App content → Data safety → data deletion URL**):
 
 ```
-https://mycooperativeos.com/privacy#deleting-your-account-and-your-data
+https://mycooperativeos.com/account/delete
 ```
 
 **Data Safety declaration.** What this app actually does, so the form matches
@@ -222,6 +223,65 @@ the code:
 | Encrypted in transit | Yes (HTTPS) |
 | Users can request deletion | Yes — see the URL above |
 | App collects data from children | No; not directed at under-18s |
+
+**Store listing** (**Grow → Store presence → Main store listing**). Every
+feature named here is in the app today; Play can reject a listing that
+promises what the app doesn't do, so update this when features change.
+Because the app needs an account, also give the reviewers a live demo member
+sign-in under **App content → App access**.
+
+Short description (75 / 80 characters):
+
+```
+Contribute, save, borrow and vote in your cooperative, all from your phone.
+```
+
+Full description (~2,000 / 4,000 characters):
+
+```
+CooperativeOS is the member app for cooperative societies that run on CooperativeOS. Keep up with your contributions, savings, loans and dividends, and take part in decisions, without waiting for the next meeting or a paper passbook.
+
+YOUR MONEY AT A GLANCE
+• See your savings balance, share capital and loans on one home screen
+• Check every contribution and repayment as soon as it is recorded
+• Download a PDF statement whenever you need one
+
+CONTRIBUTE AND PAY
+• Pay contributions and loan repayments with card, bank transfer, USSD and more through Paystack
+• Or pay by transfer into your cooperative's account and add the reference so officers can match it
+• Payments go straight into your cooperative's own bank account. CooperativeOS never holds your money
+
+SAVE WITH A PURPOSE
+• Set savings goals for school fees, rent, a business or anything else, and track your progress
+• Ask to withdraw from your savings in the app
+
+BORROW FROM YOUR COOPERATIVE
+• Apply for a loan from your phone
+• Follow your application from review to approval
+• See your repayment schedule, what you have paid and what is left
+
+DIVIDENDS
+• See the dividends your cooperative has declared and what you received
+
+HAVE YOUR SAY
+• Vote on your cooperative's motions and resolutions from anywhere
+• Your vote is recorded right away
+
+A VERIFIED MEMBER PROFILE
+• Complete your profile step by step: your details, contact, photo and a means of ID
+• Add your bank details for payouts
+• An officer of your cooperative reviews your profile and verifies your membership
+
+YOUR DATA, YOUR CHOICE
+• Download a copy of all the data your cooperative holds about you in one file
+• Ask for your account to be deleted from the app or at mycooperativeos.com/account/delete
+
+BUILT FOR COOPERATIVES
+Each cooperative's records are kept separate and private. Officers manage members, approvals and the accounts from the CooperativeOS web console. Members use this app.
+
+TO USE THIS APP
+You need to be a member of a cooperative that uses CooperativeOS. Sign in with the email and password your cooperative set up for you, or join through your cooperative's invite link. Does your cooperative want to come on board? Visit mycooperativeos.com.
+```
 
 **Release name and notes.** The release name is for you only — members never
 see it — so make it the version, which is what you'll search for when a
