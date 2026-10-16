@@ -16,6 +16,7 @@ import { StatTile } from '@/ui/StatTile'
 import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
+import { MemberSearchSelect } from '@/ui/MemberSearchSelect'
 import { naira, shortDate } from '@/lib/format'
 import type { DisbursementVerdict, Loan, LoanFinding, LoanProduct, RepaymentClaim } from '@/api/types'
 
@@ -915,8 +916,8 @@ function ApplyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Modal open={open} onClose={onClose} title="New loan" subtitle="Create a loan application for a member">
       <form onSubmit={submit} className="space-y-3.5">
-        <Field label="Member">
-          <Select required value={form.membership} onChange={(e) => set('membership', e.target.value)} options={[{ value: '', label: 'Select…' }, ...members.map((m) => ({ value: String(m.id), label: `${m.full_name} · ${m.member_no}` }))]} />
+        <Field label="Member or non-member" interactive>
+          <MemberSearchSelect required members={members} value={form.membership} onChange={(v) => set('membership', v)} />
         </Field>
         <Field label="Loan product">
           <Select required value={form.product} onChange={(e) => set('product', e.target.value)} options={[{ value: '', label: products.length ? 'Select…' : 'Create a product first' }, ...products.map((p) => ({ value: String(p.id), label: `${p.name} · ${p.interest_rate}%` }))]} />

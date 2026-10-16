@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { AxiosRequestConfig } from 'axios'
 import { api } from './client'
 import { useAuth } from '@/auth/AuthContext'
 import type {
@@ -25,6 +26,7 @@ import type {
   NotificationTemplate,
   PaymentMonitor,
   PlatformProfile,
+  PlatformMemberHit,
   Contribution,
   ContributionSummary,
   ContributionType,
@@ -65,6 +67,27 @@ function unwrap<T>(data: Paginated<T> | T[]): T[] {
   return Array.isArray(data) ? data : data.results
 }
 
+/**
+ * Every row of a paginated list, not just its first page.
+ *
+ * The console's tables search, filter and count on the client, so reading only
+ * page one (25 rows) silently hid everything after it. Asks for the server's
+ * largest page and follows on until there is no next page.
+ */
+async function getAll<T>(url: string, config: AxiosRequestConfig = {}): Promise<T[]> {
+  const rows: T[] = []
+  for (let page = 1; page <= 200; page++) {
+    const { data } = await api.get<Paginated<T> | T[]>(url, {
+      ...config,
+      params: { ...config.params, page_size: 500, page },
+    })
+    if (Array.isArray(data)) return data
+    rows.push(...data.results)
+    if (!data.next) break
+  }
+  return rows
+}
+
 // Scope query keys by active cooperative so switching tenants refetches.
 function useCoopKey() {
   const { activeCooperativeId } = useAuth()
@@ -87,8 +110,7 @@ export function useMembers(params?: { status?: string }) {
   return useQuery({
     queryKey: ['members', coop, params],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Member> | Member[]>('/members/', { params })
-      return unwrap(data)
+      return getAll<Member>('/members/', { params })
     },
   })
 }
@@ -107,11 +129,50 @@ export function usePlatformMembers(cooperativeId: number | undefined) {
     enabled: cooperativeId != null,
     queryKey: ['platform-members', cooperativeId],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Member> | Member[]>('/members/', {
+      return getAll<Member>('/members/', { headers: { 'X-Cooperative-Id': String(cooperativeId) } })
+    },
+  })
+}
+
+/**
+ * One member's full profile — KYC, next of kin, bank — for platform staff.
+ * Opening it is written to the cooperative's audit log server-side.
+ */
+export function usePlatformMember(cooperativeId: number, membershipId: number | null) {
+  return useQuery({
+    enabled: membershipId != null,
+    queryKey: ['platform-member', cooperativeId, membershipId],
+    queryFn: async () => {
+      const { data } = await api.get<Member>(`/members/${membershipId}/`, {
         headers: { 'X-Cooperative-Id': String(cooperativeId) },
       })
-      return unwrap(data)
+      return data
     },
+  })
+}
+
+/** Search people across every cooperative (platform staff only). */
+export function usePlatformMemberSearch(query: string) {
+  const q = query.trim()
+  return useQuery({
+    enabled: q.length >= 2,
+    queryKey: ['platform-member-search', q],
+    queryFn: async () => {
+      const { data } = await api.get<PlatformMemberHit[]>('/platform/member-search/', { params: { q } })
+      return data
+    },
+  })
+}
+
+export function usePlatformMemberDocuments(cooperativeId: number, membershipId: number | null) {
+  return useQuery({
+    enabled: membershipId != null,
+    queryKey: ['platform-member-documents', cooperativeId, membershipId],
+    queryFn: () =>
+      getAll<MemberDocument>('/member-documents/', {
+        params: { membership: membershipId },
+        headers: { 'X-Cooperative-Id': String(cooperativeId) },
+      }),
   })
 }
 
@@ -144,10 +205,7 @@ export function useContributionTypes() {
   return useQuery({
     queryKey: ['contribution-types', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<ContributionType> | ContributionType[]>(
-        '/contribution-types/',
-      )
-      return unwrap(data)
+      return getAll<ContributionType>('/contribution-types/')
     },
   })
 }
@@ -157,10 +215,7 @@ export function useContributions() {
   return useQuery({
     queryKey: ['contributions', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Contribution> | Contribution[]>(
-        '/contributions/',
-      )
-      return unwrap(data)
+      return getAll<Contribution>('/contributions/')
     },
   })
 }
@@ -170,8 +225,7 @@ export function useAccounts() {
   return useQuery({
     queryKey: ['accounts', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Account> | Account[]>('/accounts/')
-      return unwrap(data)
+      return getAll<Account>('/accounts/')
     },
   })
 }
@@ -200,10 +254,7 @@ export function useInternalTransfers() {
   return useQuery({
     queryKey: ['internal-transfers', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<InternalTransfer> | InternalTransfer[]>(
-        '/internal-transfers/',
-      )
-      return unwrap(data)
+      return getAll<InternalTransfer>('/internal-transfers/')
     },
   })
 }
@@ -237,8 +288,7 @@ export function useResolutions() {
   return useQuery({
     queryKey: ['resolutions', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Resolution> | Resolution[]>('/resolutions/')
-      return unwrap(data)
+      return getAll<Resolution>('/resolutions/')
     },
   })
 }
@@ -248,8 +298,7 @@ export function useMeetings() {
   return useQuery({
     queryKey: ['meetings', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Meeting> | Meeting[]>('/meetings/')
-      return unwrap(data)
+      return getAll<Meeting>('/meetings/')
     },
   })
 }
@@ -259,10 +308,7 @@ export function useAnnouncements() {
   return useQuery({
     queryKey: ['announcements', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Announcement> | Announcement[]>(
-        '/announcements/',
-      )
-      return unwrap(data)
+      return getAll<Announcement>('/announcements/')
     },
   })
 }
@@ -318,10 +364,7 @@ export function useProviderAccounts() {
   return useQuery({
     queryKey: ['provider-accounts', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Record<string, unknown>> | Record<string, unknown>[]>(
-        '/provider-accounts/',
-      )
-      return unwrap(data)
+      return getAll<Record<string, unknown>>('/provider-accounts/')
     },
   })
 }
@@ -331,8 +374,7 @@ export function useRoles() {
   return useQuery({
     queryKey: ['roles', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Role> | Role[]>('/roles/')
-      return unwrap(data)
+      return getAll<Role>('/roles/')
     },
   })
 }
@@ -342,8 +384,7 @@ export function useCooperatives() {
   return useQuery({
     queryKey: ['cooperatives'],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Cooperative> | Cooperative[]>('/cooperatives/')
-      return unwrap(data)
+      return getAll<Cooperative>('/cooperatives/')
     },
   })
 }
@@ -376,8 +417,7 @@ export function usePlans() {
   return useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Plan> | Plan[]>('/plans/')
-      return unwrap(data)
+      return getAll<Plan>('/plans/')
     },
   })
 }
@@ -386,10 +426,7 @@ export function useSubscriptions() {
   return useQuery({
     queryKey: ['subscriptions'],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Subscription> | Subscription[]>(
-        '/subscriptions/',
-      )
-      return unwrap(data)
+      return getAll<Subscription>('/subscriptions/')
     },
   })
 }
@@ -398,8 +435,7 @@ export function useInvoices() {
   return useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Invoice> | Invoice[]>('/invoices/')
-      return unwrap(data)
+      return getAll<Invoice>('/invoices/')
     },
   })
 }
@@ -431,10 +467,7 @@ export function useOnboardingItems() {
   return useQuery({
     queryKey: ['onboarding-items'],
     queryFn: async () => {
-      const { data } = await api.get<
-        Paginated<OnboardingItem> | OnboardingItem[]
-      >('/onboarding-items/')
-      return unwrap(data)
+      return getAll<OnboardingItem>('/onboarding-items/')
     },
   })
 }
@@ -443,8 +476,7 @@ export function useDomains() {
   return useQuery({
     queryKey: ['domains'],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Domain> | Domain[]>('/domains/')
-      return unwrap(data)
+      return getAll<Domain>('/domains/')
     },
   })
 }
@@ -517,8 +549,7 @@ export function useIncidents() {
   return useQuery({
     queryKey: ['incidents'],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Incident> | Incident[]>('/incidents/')
-      return unwrap(data)
+      return getAll<Incident>('/incidents/')
     },
   })
 }
@@ -527,10 +558,7 @@ export function usePlatformTeam() {
   return useQuery({
     queryKey: ['platform-team'],
     queryFn: async () => {
-      const { data } = await api.get<
-        Paginated<PlatformTeamMember> | PlatformTeamMember[]
-      >('/platform-team/')
-      return unwrap(data)
+      return getAll<PlatformTeamMember>('/platform-team/')
     },
   })
 }
@@ -549,10 +577,7 @@ export function useNotificationTemplates() {
   return useQuery({
     queryKey: ['notification-templates'],
     queryFn: async () => {
-      const { data } = await api.get<
-        Paginated<NotificationTemplate> | NotificationTemplate[]
-      >('/notification-templates/')
-      return unwrap(data)
+      return getAll<NotificationTemplate>('/notification-templates/')
     },
   })
 }
@@ -562,8 +587,7 @@ export function useApprovals(status?: string) {
   return useQuery({
     queryKey: ['approvals', coop, status],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<ApprovalRequest> | ApprovalRequest[]>('/approvals/', { params: status ? { status } : undefined })
-      return unwrap(data)
+      return getAll<ApprovalRequest>('/approvals/', { params: status ? { status } : undefined })
     },
   })
 }
@@ -586,8 +610,7 @@ export function useLoanProducts() {
   return useQuery({
     queryKey: ['loan-products', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<LoanProduct> | LoanProduct[]>('/loan-products/')
-      return unwrap(data)
+      return getAll<LoanProduct>('/loan-products/')
     },
   })
 }
@@ -597,8 +620,7 @@ export function useLoans(params?: { membership?: number; status?: string }) {
   return useQuery({
     queryKey: ['loans', coop, params],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Loan> | Loan[]>('/loans/', { params })
-      return unwrap(data)
+      return getAll<Loan>('/loans/', { params })
     },
   })
 }
@@ -621,8 +643,7 @@ export function useDividends() {
   return useQuery({
     queryKey: ['dividends', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<DividendDeclaration> | DividendDeclaration[]>('/dividends/')
-      return unwrap(data)
+      return getAll<DividendDeclaration>('/dividends/')
     },
   })
 }
@@ -632,8 +653,7 @@ export function useSavingsProducts() {
   return useQuery({
     queryKey: ['savings-products', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<SavingsProduct> | SavingsProduct[]>('/savings-products/')
-      return unwrap(data)
+      return getAll<SavingsProduct>('/savings-products/')
     },
   })
 }
@@ -643,9 +663,7 @@ export function useSavingsGoals(membershipId: number | undefined) {
     enabled: membershipId != null,
     queryKey: ['savings-goals', membershipId],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<SavingsGoal> | SavingsGoal[]>(
-        '/savings-goals/', { params: { membership: membershipId } })
-      return unwrap(data)
+      return getAll<SavingsGoal>('/savings-goals/', { params: { membership: membershipId } })
     },
   })
 }
@@ -667,8 +685,7 @@ export function useMyLoans() {
   return useQuery({
     queryKey: ['my-loans', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Loan> | Loan[]>('/me/loans/')
-      return unwrap(data)
+      return getAll<Loan>('/me/loans/')
     },
   })
 }
@@ -678,9 +695,7 @@ export function usePendingRepayments() {
   return useQuery({
     queryKey: ['pending-repayments', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<RepaymentClaim> | RepaymentClaim[]>(
-        '/loan-repayments/?status=pending')
-      return unwrap(data)
+      return getAll<RepaymentClaim>('/loan-repayments/?status=pending')
     },
   })
 }
@@ -739,8 +754,7 @@ export function useMyLoanProducts() {
   return useQuery({
     queryKey: ['my-loan-products', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<LoanProduct> | LoanProduct[]>('/me/loan-products/')
-      return unwrap(data)
+      return getAll<LoanProduct>('/me/loan-products/')
     },
   })
 }
@@ -750,8 +764,7 @@ export function useMySavingsGoals() {
   return useQuery({
     queryKey: ['my-savings-goals', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<SavingsGoal> | SavingsGoal[]>('/me/savings-goals/')
-      return unwrap(data)
+      return getAll<SavingsGoal>('/me/savings-goals/')
     },
   })
 }
@@ -761,8 +774,7 @@ export function useMySavingsProducts() {
   return useQuery({
     queryKey: ['my-savings-products', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<SavingsProduct> | SavingsProduct[]>('/me/savings-products/')
-      return unwrap(data)
+      return getAll<SavingsProduct>('/me/savings-products/')
     },
   })
 }
@@ -772,8 +784,7 @@ export function useMyDividends() {
   return useQuery({
     queryKey: ['my-dividends', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<MemberDividend> | MemberDividend[]>('/me/dividends/')
-      return unwrap(data)
+      return getAll<MemberDividend>('/me/dividends/')
     },
   })
 }
@@ -790,10 +801,7 @@ export function useMyWithdrawals() {
   return useQuery({
     queryKey: ['my-withdrawals', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Withdrawal> | Withdrawal[]>(
-        '/me/withdrawals/',
-      )
-      return unwrap(data)
+      return getAll<Withdrawal>('/me/withdrawals/')
     },
   })
 }
@@ -803,8 +811,7 @@ export function useMyDocuments() {
   return useQuery({
     queryKey: ['my-documents', coop],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<MemberDocument> | MemberDocument[]>('/me/documents/')
-      return unwrap(data)
+      return getAll<MemberDocument>('/me/documents/')
     },
   })
 }
@@ -814,10 +821,7 @@ export function useMemberDocuments(membershipId: string | number | undefined) {
     enabled: membershipId != null,
     queryKey: ['member-documents', membershipId],
     queryFn: async () => {
-      const { data } = await api.get<
-        Paginated<MemberDocument> | MemberDocument[]
-      >('/member-documents/', { params: { membership: membershipId } })
-      return unwrap(data)
+      return getAll<MemberDocument>('/member-documents/', { params: { membership: membershipId } })
     },
   })
 }
@@ -860,9 +864,7 @@ export function useAttendances(meetingId: number | undefined) {
     enabled: meetingId != null,
     queryKey: ['attendances', meetingId],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Attendance> | Attendance[]>(
-        '/attendances/', { params: { meeting: meetingId } })
-      return unwrap(data)
+      return getAll<Attendance>('/attendances/', { params: { meeting: meetingId } })
     },
   })
 }
@@ -883,10 +885,7 @@ export function useSupportTickets(cooperativeId: number | undefined) {
     enabled: cooperativeId != null,
     queryKey: ['support-tickets', cooperativeId],
     queryFn: async () => {
-      const { data } = await api.get<
-        Paginated<SupportTicket> | SupportTicket[]
-      >('/support-tickets/', { params: { cooperative: cooperativeId } })
-      return unwrap(data)
+      return getAll<SupportTicket>('/support-tickets/', { params: { cooperative: cooperativeId } })
     },
   })
 }
@@ -934,11 +933,7 @@ export function useWithdrawals(params?: { membership?: number; unpaid?: boolean 
   return useQuery({
     queryKey: ['withdrawals', coop, params],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Withdrawal> | Withdrawal[]>(
-        '/withdrawals/',
-        { params },
-      )
-      return unwrap(data)
+      return getAll<Withdrawal>('/withdrawals/', { params })
     },
   })
 }
@@ -1013,11 +1008,7 @@ export function usePayouts(params?: { unsettled?: boolean; status?: string }) {
   return useQuery({
     queryKey: ['payouts', coop, params],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<Payout> | Payout[]>(
-        '/payouts/',
-        { params },
-      )
-      return unwrap(data)
+      return getAll<Payout>('/payouts/', { params })
     },
   })
 }

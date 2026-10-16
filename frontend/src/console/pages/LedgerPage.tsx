@@ -24,6 +24,7 @@ import { Table, type Column } from '@/ui/Table'
 import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
+import { MemberSearchSelect } from '@/ui/MemberSearchSelect'
 import { ImmutableNotice } from '@/ui/ImmutableNotice'
 import { StatTile } from '@/ui/StatTile'
 import { naira, shortDate } from '@/lib/format'
@@ -462,16 +463,8 @@ function RecordModal({ open, onClose }: { open: boolean; onClose: () => void }) 
   return (
     <Modal open={open} onClose={onClose} title="Record contribution" subtitle="Posts a balanced journal to the ledger">
       <form onSubmit={submit} className="space-y-3.5">
-        <Field label="Member">
-          <Select
-            required
-            value={form.membership}
-            onChange={(e) => set('membership', e.target.value)}
-            options={[
-              { value: '', label: 'Select member…' },
-              ...(members.data ?? []).map((m) => ({ value: String(m.id), label: `${m.member_no} · ${m.full_name}` })),
-            ]}
-          />
+        <Field label="Member" interactive>
+          <MemberSearchSelect required members={members.data ?? []} value={form.membership} onChange={(v) => set('membership', v)} />
         </Field>
         <Field label="Contribution type">
           <Select

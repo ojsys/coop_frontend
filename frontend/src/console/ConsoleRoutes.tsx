@@ -4,6 +4,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { MembersPage } from './pages/MembersPage'
 import { MemberDetailPage } from './pages/MemberDetailPage'
 import { JoinRequestsPage } from './pages/JoinRequestsPage'
+import { DeletionRequestsPage } from './pages/DeletionRequestsPage'
 import { LedgerPage } from './pages/LedgerPage'
 import { ContributionTypesPage } from './pages/ContributionTypesPage'
 import { ReconciliationPage } from './pages/ReconciliationPage'
@@ -28,6 +29,7 @@ export function ConsoleRoutes() {
         <Route path="members" element={<MembersPage />} />
         <Route path="members/:id" element={<MemberDetailPage />} />
         <Route path="join-requests" element={<JoinRequestsPage />} />
+        <Route path="deletion-requests" element={<DeletionRequestsPage />} />
         <Route path="ledger" element={<LedgerPage />} />
         <Route path="contribution-types" element={<ContributionTypesPage />} />
         <Route path="reconciliation" element={<ReconciliationPage />} />

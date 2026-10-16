@@ -16,6 +16,7 @@ import { Table, Pagination, type Column } from '@/ui/Table'
 import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
 import { Field } from '@/ui/Field'
+import { memberMatches } from '@/lib/members'
 import { MemberEditModal } from '../MemberEditModal'
 import { naira } from '@/lib/format'
 import type { Member } from '@/api/types'
@@ -46,15 +47,7 @@ export function MembersPage() {
     if (filter === 'suspended') rows = rows.filter((m) => m.status === 'suspended')
     if (filter === 'non-members') rows = rows.filter((m) => m.kind === 'non_member')
     if (filter === 'to verify') rows = rows.filter((m) => m.verification_status === 'awaiting')
-    if (search) {
-      const q = search.toLowerCase()
-      rows = rows.filter(
-        (m) =>
-          m.full_name.toLowerCase().includes(q) ||
-          m.member_no.toLowerCase().includes(q) ||
-          m.phone.includes(q),
-      )
-    }
+    if (search) rows = rows.filter((m) => memberMatches(m, search))
     return rows
   }, [members, filter, search])
 
@@ -152,7 +145,7 @@ export function MembersPage() {
                 setSearch(e.target.value)
                 setPage(1)
               }}
-              placeholder="Search name, member no, phone…"
+              placeholder="Search name, member no., phone or email…"
               className="w-full bg-transparent text-sm outline-none placeholder:text-muted-2"
             />
           </div>

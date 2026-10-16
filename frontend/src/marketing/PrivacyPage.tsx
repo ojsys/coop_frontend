@@ -221,8 +221,21 @@ export function PrivacyPage() {
         </Section>
 
         <Section title="Deleting your account and your data">
-          <p>You can ask for your account to be closed and your personal data deleted. There are two routes:</p>
+          <p>You can ask for your account to be closed and your personal data deleted, and you can download a copy of everything we hold about you first. There are three routes:</p>
           <ul className="list-disc space-y-1.5 pl-5">
+            <li>
+              In the app or on the website: <strong>Profile → Delete my account</strong>.
+              <strong> Profile → Download my data</strong> gives you a copy of your data
+              (your profile, statement, contributions, loans, savings, votes, photo and
+              documents) as one file.
+            </li>
+            <li>
+              Without signing in, at{' '}
+              <Link className="text-green hover:underline" to="/account/delete">
+                mycooperativeos.com/account/delete
+              </Link>
+              . We email you a link to confirm it is you.
+            </li>
             <li>
               Ask an officer of your cooperative, who can exit your membership and
               remove personal details from your record.

@@ -4,12 +4,14 @@ import { GreenCard } from '@/ui/GreenCard'
 import { CoopSwitcher } from './CoopSwitcher'
 import { useAuth } from '@/auth/AuthContext'
 import { usePendingJoinRequestCount } from '@/api/signup'
+import { usePendingDeletionCount } from '@/api/dataRights'
 import { num, shortDate } from '@/lib/format'
 
 const NAV: NavItem[] = [
   { to: '/console', label: 'Dashboard', icon: 'dashboard', end: true },
   { to: '/console/members', label: 'Members', icon: 'group' },
   { to: '/console/join-requests', label: 'Join requests', icon: 'person_add' },
+  { to: '/console/deletion-requests', label: 'Deletion requests', icon: 'person_remove' },
   { to: '/console/ledger', label: 'Ledger & Contributions', icon: 'account_balance' },
   { to: '/console/contribution-types', label: 'Contribution types', icon: 'savings' },
   { to: '/console/reconciliation', label: 'Reconciliation', icon: 'sync_alt' },
@@ -82,13 +84,17 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   // every page of the console rather than a missing badge.
   const canSeeRequests = activeMembership?.is_privileged ?? false
   const { data: pending = 0 } = usePendingJoinRequestCount(canSeeRequests)
+  // Also worth the badge: the privacy notice promises these within 30 days.
+  const { data: deletions = 0 } = usePendingDeletionCount(canSeeRequests)
 
   // People waiting to be admitted are the one queue worth interrupting the nav
   // for: nothing else in here degrades by being left alone for a week.
   const nav = NAV.map((item) =>
     item.to === '/console/join-requests' && pending > 0
       ? { ...item, badge: pending }
-      : item,
+      : item.to === '/console/deletion-requests' && deletions > 0
+        ? { ...item, badge: deletions }
+        : item,
   )
 
   return (

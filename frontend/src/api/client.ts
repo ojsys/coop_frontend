@@ -51,6 +51,7 @@ const PUBLIC_PATHS = [
   // before, so a stale token is the common case here, not the exception.
   '/join',
   '/billing/pay',
+  '/account/delete',
   '/privacy',
   '/terms',
   '/legal',

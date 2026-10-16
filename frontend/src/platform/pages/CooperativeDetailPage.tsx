@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   useCooperative,
   useInvoices,
@@ -7,6 +7,8 @@ import {
   usePlans,
   useSupportTickets,
   usePlatformMembers,
+  usePlatformMember,
+  usePlatformMemberDocuments,
 } from '@/api/hooks'
 import {
   useUpdateCooperative,
@@ -32,7 +34,8 @@ import { LocationSelect, CoopTypeSelect } from '@/ui/StateLGASelect'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { naira, num, longDate, shortDate, dateTime } from '@/lib/format'
-import { Table, type Column } from '@/ui/Table'
+import { Table, Pagination, type Column } from '@/ui/Table'
+import { memberMatches } from '@/lib/members'
 import type {
   Cooperative, CooperativeHealth, Member, SupportTicket,
 } from '@/api/types'
@@ -45,7 +48,11 @@ export function CooperativeDetailPage() {
   const { data: coop, isLoading, isError } = useCooperative(id)
   const { data: subscriptions = [] } = useSubscriptions()
   const { data: invoices = [] } = useInvoices()
-  const [tab, setTab] = useState<Tab>('overview')
+  // ?member=<id> arrives from the platform-wide person search: open that
+  // person's profile straight away.
+  const [params] = useSearchParams()
+  const linkedMember = Number(params.get('member')) || null
+  const [tab, setTab] = useState<Tab>(linkedMember ? 'members' : 'overview')
 
   const coopId = coop?.id
   const subscription = subscriptions.find((s) => s.cooperative === coopId)
@@ -139,7 +146,7 @@ export function CooperativeDetailPage() {
               </div>
             )}
 
-            {tab === 'members' && <MembersTab coop={coop} />}
+            {tab === 'members' && <MembersTab coop={coop} initialViewing={linkedMember} />}
 
             {tab === 'config' && <ConfigTab coop={coop} />}
 
@@ -402,11 +409,19 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
 
 // ── Support tab ─────────────────────────────────────────────────────────────
 // ── Members: who is actually inside this cooperative ────────────────────────
-function MembersTab({ coop }: { coop: Cooperative }) {
+const MEMBERS_PAGE = 25
+
+function MembersTab({ coop, initialViewing = null }: { coop: Cooperative; initialViewing?: number | null }) {
   const { data: members = [], isLoading, isError } = usePlatformMembers(coop.id)
   const [target, setTarget] = useState<Member | null>(null)
+  const [viewing, setViewing] = useState<number | null>(initialViewing)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const officers = members.filter((m) => m.role_name && m.role_name !== 'Member')
+  const nonMembers = members.filter((m) => m.kind === 'non_member')
+  const filtered = members.filter((m) => memberMatches(m, search))
+  const paged = filtered.slice((page - 1) * MEMBERS_PAGE, page * MEMBERS_PAGE)
 
   const columns: Column<Member>[] = [
     {
@@ -416,13 +431,21 @@ function MembersTab({ coop }: { coop: Cooperative }) {
         <div className="flex items-center gap-3">
           <Avatar name={m.full_name} size={34} />
           <div>
-            <div className="font-medium text-ink">{m.full_name}</div>
+            <div className="flex items-center gap-1.5 font-medium text-ink">
+              {m.full_name}
+              {m.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
+            </div>
             <div className="font-mono text-xs text-muted-2">{m.member_no}</div>
           </div>
         </div>
       ),
     },
-    { key: 'email', header: 'Email', render: (m) => m.email || '—' },
+    { key: 'email', header: 'Contact', render: (m) => (
+      <div>
+        <div>{m.email || '—'}</div>
+        {m.phone && <div className="text-xs text-muted-2">{m.phone}</div>}
+      </div>
+    ) },
     { key: 'role', header: 'Role', render: (m) => m.role_name ?? '—' },
     { key: 'status', header: 'Status', render: (m) => <StatusPill status={m.status} /> },
     {
@@ -430,23 +453,29 @@ function MembersTab({ coop }: { coop: Cooperative }) {
       header: '',
       align: 'right',
       render: (m) => (
-        <Button
-          size="sm"
-          variant="secondary"
-          icon="login"
-          onClick={() => setTarget(m)}
-        >
-          Impersonate
-        </Button>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="secondary" icon="badge" onClick={() => setViewing(m.id)}>
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="login"
+            onClick={() => setTarget(m)}
+          >
+            Impersonate
+          </Button>
+        </div>
       ),
     },
   ]
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatTile label="Members" value={num(members.length)} icon="group" iconTone="green" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="People" value={num(members.length)} icon="group" iconTone="green" />
         <StatTile label="Officers" value={num(officers.length)} icon="shield_person" iconTone="gold" />
+        <StatTile label="Non-members" value={num(nonMembers.length)} icon="person_outline" iconTone="neutral" />
         <StatTile
           label="Cap"
           value={`${num(members.length)} / ${num(coop.member_cap)}`}
@@ -459,13 +488,25 @@ function MembersTab({ coop }: { coop: Cooperative }) {
         <div className="border-b border-line px-5 py-3.5">
           <CardHeader
             title="Members"
-            subtitle="Everyone with an account in this cooperative. Impersonation is consent-gated and written to the audit log."
+            subtitle="Everyone with an account in this cooperative. Opening a profile and impersonating are both written to the audit log."
           />
+          <div className="mt-3 flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2">
+            <Icon name="search" size={18} className="text-muted-2" />
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setPage(1)
+              }}
+              placeholder="Search name, member no., phone or email…"
+              className="w-full bg-transparent text-sm outline-none placeholder:text-muted-2"
+            />
+          </div>
         </div>
         <QueryState isLoading={isLoading} isError={isError}>
           <Table
             columns={columns}
-            rows={members}
+            rows={paged}
             rowKey={(m) => m.id}
             empty={
               <div className="text-sm text-muted">
@@ -481,8 +522,16 @@ function MembersTab({ coop }: { coop: Cooperative }) {
               </div>
             }
           />
+          {filtered.length > MEMBERS_PAGE && (
+            <Pagination page={page} pageSize={MEMBERS_PAGE} total={filtered.length} onPage={setPage} />
+          )}
+          {search && filtered.length === 0 && members.length > 0 && (
+            <p className="px-5 py-4 text-sm text-muted">No one matches “{search}”.</p>
+          )}
         </QueryState>
       </Card>
+
+      <MemberProfileModal coop={coop} membershipId={viewing} onClose={() => setViewing(null)} />
 
       <ImpersonateMemberModal
         member={target}
@@ -490,6 +539,116 @@ function MembersTab({ coop }: { coop: Cooperative }) {
         onClose={() => setTarget(null)}
       />
     </div>
+  )
+}
+
+// ── A member's profile, for KYC and support checks ──────────────────────────
+function MemberProfileModal({
+  coop,
+  membershipId,
+  onClose,
+}: {
+  coop: Cooperative
+  membershipId: number | null
+  onClose: () => void
+}) {
+  const { data: m, isLoading, isError } = usePlatformMember(coop.id, membershipId)
+  const { data: docs = [] } = usePlatformMemberDocuments(coop.id, membershipId)
+
+  const sections: [string, [string, string][]][] = m
+    ? [
+        ['Membership', [
+          ['Member no.', m.member_no],
+          ['Type', m.kind === 'non_member' ? 'Non-member' : 'Member'],
+          ['Role', m.role_name ?? 'Member'],
+          ['Status', m.status],
+          ['Joined', m.joined_at ? longDate(m.joined_at) : '—'],
+          ['Share capital', naira(m.share_capital)],
+          ['Savings balance', naira(m.savings_balance)],
+        ]],
+        ['Contact', [
+          ['Email', m.email || '—'],
+          ['Phone', m.phone || '—'],
+          ['Address', m.address || '—'],
+        ]],
+        ['Personal (KYC)', [
+          ['Date of birth', m.date_of_birth ? longDate(m.date_of_birth) : '—'],
+          ['Gender', m.gender || '—'],
+          ['Occupation', m.occupation || '—'],
+          ['Next of kin', m.next_of_kin_name || '—'],
+          ['Next of kin phone', m.next_of_kin_phone || '—'],
+        ]],
+        ['Bank (payout destination)', [
+          ['Bank', m.bank_name || '—'],
+          ['Account number', m.bank_account_no || '—'],
+        ]],
+      ]
+    : []
+
+  return (
+    <Modal
+      open={membershipId != null}
+      onClose={onClose}
+      width={620}
+      title={m ? m.full_name : 'Member profile'}
+      subtitle={`${coop.name} · viewing is recorded in the audit log`}
+    >
+      <QueryState isLoading={isLoading} isError={isError}>
+        {m && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              {m.photo ? (
+                <img src={m.photo} alt="" className="size-16 rounded-full object-cover" />
+              ) : (
+                <Avatar name={m.full_name} size={64} />
+              )}
+              <div>
+                <div className="font-display text-lg font-semibold text-ink">{m.full_name}</div>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <StatusPill status={m.status} />
+                  {m.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
+                </div>
+              </div>
+            </div>
+
+            {sections.map(([title, rows]) => (
+              <div key={title}>
+                <h4 className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-2">{title}</h4>
+                <div className="divide-y divide-line rounded-lg border border-line">
+                  {rows.map(([k, v]) => (
+                    <div key={k} className="flex justify-between gap-4 px-3.5 py-2 text-sm">
+                      <span className="text-muted-2">{k}</span>
+                      <span className="text-right text-ink-soft">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <div>
+              <h4 className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-2">Documents</h4>
+              <div className="divide-y divide-line rounded-lg border border-line">
+                {docs.length === 0 && <p className="px-3.5 py-3 text-sm text-muted">No documents uploaded.</p>}
+                {docs.map((d) => (
+                  <a
+                    key={d.id}
+                    href={d.file}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-3 px-3.5 py-2.5 transition hover:bg-sand"
+                  >
+                    <Icon name="description" size={18} className="text-muted-2" />
+                    <span className="flex-1 text-sm text-ink">{d.label || d.doc_type_display}</span>
+                    <span className="text-xs text-muted-2">{d.doc_type_display} · {shortDate(d.created_at)}</span>
+                    <Icon name="open_in_new" size={16} className="text-muted-2" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </QueryState>
+    </Modal>
   )
 }
 

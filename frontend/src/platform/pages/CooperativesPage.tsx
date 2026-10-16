@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCooperatives } from '@/api/hooks'
+import { useCooperatives, usePlatformMemberSearch } from '@/api/hooks'
 import { PageHeader } from '@/ui/PageHeader'
 import { Card } from '@/ui/Card'
 import { Button } from '@/ui/Button'
@@ -60,6 +60,8 @@ export function CooperativesPage() {
         }
       />
 
+      <PersonSearch />
+
       <Card padded={false}>
         <div className="flex items-center gap-2 border-b border-line p-3">
           <div className="flex flex-1 items-center gap-2 rounded-md border border-line bg-paper px-3 py-2">
@@ -82,5 +84,67 @@ export function CooperativesPage() {
         </QueryState>
       </Card>
     </div>
+  )
+}
+
+/**
+ * Find a person in any cooperative — for KYC and support checks — and open
+ * their profile in their own society, where viewing it is audited.
+ */
+function PersonSearch() {
+  const navigate = useNavigate()
+  const [text, setText] = useState('')
+  const [query, setQuery] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(text), 300)
+    return () => clearTimeout(t)
+  }, [text])
+  const { data: hits = [], isFetching } = usePlatformMemberSearch(query)
+  const searching = query.trim().length >= 2
+
+  return (
+    <Card padded={false} className="mb-4">
+      <div className="p-3">
+        <div className="flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2">
+          <Icon name="person_search" size={18} className="text-muted-2" />
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Find a person in any cooperative — name, member no., phone or email…"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-muted-2"
+          />
+          {isFetching && <span className="text-xs text-muted-2">Searching…</span>}
+        </div>
+      </div>
+      {searching && !isFetching && hits.length === 0 && (
+        <p className="border-t border-line px-5 py-3 text-sm text-muted">No one matches “{query.trim()}”.</p>
+      )}
+      {hits.length > 0 && (
+        <div className="max-h-80 divide-y divide-line overflow-auto border-t border-line">
+          {hits.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              onClick={() => navigate(`/platform/cooperatives/${h.cooperative_id}?member=${h.id}`)}
+              className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition hover:bg-sand"
+            >
+              <Avatar name={h.full_name} size={30} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                  {h.full_name}
+                  {h.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
+                </div>
+                <div className="truncate text-xs text-muted-2">{h.email || h.phone || '—'}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-ink-soft">{h.cooperative_name}</div>
+                <div className="font-mono text-xs text-muted-2">{h.member_no}</div>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-muted-2" />
+            </button>
+          ))}
+        </div>
+      )}
+    </Card>
   )
 }

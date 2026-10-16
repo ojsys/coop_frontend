@@ -18,6 +18,7 @@ import { Icon } from '@/ui/Icon'
 import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
+import { memberMatches } from '@/lib/members'
 import { longDate } from '@/lib/format'
 import type { Meeting, Resolution } from '@/api/types'
 
@@ -179,6 +180,7 @@ function MeetingDetailModal({ meeting, onClose }: { meeting: Meeting; onClose: (
   const [minutes, setMinutes] = useState(meeting.minutes)
   const [status, setStatus] = useState(meeting.status)
 
+  const [attendanceSearch, setAttendanceSearch] = useState('')
   const presentIds = new Set(attendances.filter((a) => a.present).map((a) => a.membership))
 
   async function saveMinutes() {
@@ -216,8 +218,9 @@ function MeetingDetailModal({ meeting, onClose }: { meeting: Meeting; onClose: (
             <span className="text-[13px] font-medium text-ink-soft">Attendance</span>
             <span className="text-xs text-muted-2">{presentIds.size} present</span>
           </div>
+          <input value={attendanceSearch} onChange={(e) => setAttendanceSearch(e.target.value)} className="input mb-2" placeholder="Find a member…" />
           <div className="max-h-56 space-y-1 overflow-auto">
-            {members.map((m) => (
+            {members.filter((m) => memberMatches(m, attendanceSearch)).map((m) => (
               <label key={m.id} className="flex items-center gap-2.5 rounded-md border border-line px-3 py-1.5 text-[13px]">
                 <input type="checkbox" checked={presentIds.has(m.id)} onChange={() => toggleAttendance(m.id)} className="accent-green" />
                 <span className="flex-1 text-ink-soft">{m.full_name}</span>

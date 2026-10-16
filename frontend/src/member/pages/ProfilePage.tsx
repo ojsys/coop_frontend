@@ -20,6 +20,13 @@ import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { timeAgo, longDate } from '@/lib/format'
 import type { Member } from '@/api/types'
+import {
+  downloadMyData,
+  useCancelDeletion,
+  useMyDeletionState,
+  useRequestDeletion,
+} from '@/api/dataRights'
+import { BlockerList, WhatDeletionMeans } from '@/marketing/AccountDeletePage'
 
 export function ProfilePage() {
   const { user, activeMembership, logout } = useAuth()
@@ -31,6 +38,19 @@ export function ProfilePage() {
   const toast = useToast()
   const photoRef = useRef<HTMLInputElement>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  async function exportData() {
+    setExporting(true)
+    try {
+      await downloadMyData()
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not prepare your data'), 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
   // The upload sheet's preset type; null when closed. The ID step opens it on
   // "Means of ID", because an ID filed under another type does not count.
   const [docType, setDocType] = useState<string | null>(null)
@@ -164,6 +184,18 @@ export function ProfilePage() {
             <span className="text-sm font-medium">Privacy notice</span>
           </Link>
           <div className="border-t border-line" />
+          {/* Your data, yours to take and to have deleted — next to the
+              privacy notice that explains both. */}
+          <button onClick={exportData} disabled={exporting} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-ink-soft transition hover:bg-sand-deep disabled:opacity-60">
+            <Icon name={exporting ? 'hourglass_empty' : 'download'} size={20} />
+            <span className="text-sm font-medium">{exporting ? 'Preparing your data…' : 'Download my data'}</span>
+          </button>
+          <div className="border-t border-line" />
+          <button onClick={() => setDeleteOpen(true)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-ink-soft transition hover:bg-sand-deep">
+            <Icon name="person_remove" size={20} />
+            <span className="text-sm font-medium">Delete my account</span>
+          </button>
+          <div className="border-t border-line" />
           <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-danger">
             <Icon name="logout" size={20} />
             <span className="text-sm font-medium">Sign out</span>
@@ -172,6 +204,7 @@ export function ProfilePage() {
       </Section>
 
       {editOpen && p && <EditKycModal profile={p} onClose={() => setEditOpen(false)} />}
+      {deleteOpen && <DeleteAccountModal onClose={() => setDeleteOpen(false)} onExport={exportData} exporting={exporting} />}
       {docType && <UploadDocModal initialType={docType} onClose={() => setDocType(null)} />}
     </div>
   )
@@ -384,5 +417,80 @@ function ProfileProgress({
         </ol>
       )}
     </div>
+  )
+}
+
+/** Asking for the account to be deleted — or, once asked, seeing where it
+ *  stands and cancelling. */
+function DeleteAccountModal({
+  onClose,
+  onExport,
+  exporting,
+}: {
+  onClose: () => void
+  onExport: () => void
+  exporting: boolean
+}) {
+  const { data: state } = useMyDeletionState()
+  const request = useRequestDeletion()
+  const cancel = useCancelDeletion()
+  const toast = useToast()
+  const [reason, setReason] = useState('')
+  const pending = state?.request?.status === 'pending' ? state.request : null
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      await request.mutateAsync(reason.trim())
+      toast('Request sent to your cooperative')
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not send the request'), 'error')
+    }
+  }
+
+  async function undo() {
+    try {
+      await cancel.mutateAsync()
+      toast('Deletion request cancelled')
+      onClose()
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not cancel'), 'error')
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Delete my account" subtitle={pending ? 'Request pending' : undefined}>
+      <div className="space-y-4">
+        {pending ? (
+          <p className="text-sm text-ink-soft">
+            You asked on {longDate(pending.created_at)}. An officer will settle anything outstanding and
+            complete it within 30 days; we'll email you when it's done. You can cancel until then.
+          </p>
+        ) : (
+          <WhatDeletionMeans />
+        )}
+        {state && <BlockerList blockers={state.blockers} requested={Boolean(pending)} />}
+        <button onClick={onExport} disabled={exporting} className="flex items-center gap-1.5 text-sm font-medium text-green hover:underline disabled:opacity-60">
+          <Icon name="download" size={17} /> {exporting ? 'Preparing your data…' : 'Download a copy of my data first'}
+        </button>
+
+        {pending ? (
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>Close</Button>
+            <Button type="button" size="sm" loading={cancel.isPending} onClick={undo}>Cancel my request</Button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-3">
+            <Field label="Reason" hint="Optional — helps your cooperative.">
+              <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="input" />
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" size="sm" onClick={onClose}>Keep my account</Button>
+              <Button type="submit" variant="danger" size="sm" loading={request.isPending}>Request deletion</Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </Modal>
   )
 }

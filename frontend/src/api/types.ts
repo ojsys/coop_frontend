@@ -1119,6 +1119,19 @@ export interface SiteContent {
 }
 
 // DRF PageNumberPagination envelope
+/** A person found by the platform's cross-society search. */
+export interface PlatformMemberHit {
+  id: number
+  full_name: string
+  member_no: string
+  email: string
+  phone: string
+  kind: 'member' | 'non_member'
+  status: string
+  cooperative_id: number
+  cooperative_name: string
+}
+
 export interface Paginated<T> {
   count: number
   next: string | null
