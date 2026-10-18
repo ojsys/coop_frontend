@@ -12,6 +12,7 @@ import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
 import { naira, dateTime } from '@/lib/format'
 import type { ApprovalRequest } from '@/api/types'
+import { FundWalletDialog, type WalletShortfall } from '@/console/FundWalletPrompt'
 
 const tone = (s: string) => (s === 'approved' ? 'green' : s === 'rejected' ? 'danger' : 'gold')
 
@@ -24,10 +25,18 @@ export function ApprovalsPage() {
 
   const pending = approvals.filter((a) => a.status === 'pending')
 
+  // An approved loan is only paid when the wallet covers it; when it does
+  // not, the approver is asked to fund it rather than told "executed".
+  const [shortfall, setShortfall] = useState<WalletShortfall | null>(null)
+
   async function decide(a: ApprovalRequest, act: 'approve' | 'reject') {
     try {
-      await action.mutateAsync({ id: a.id, action: act })
-      toast(act === 'approve' ? 'Approved & executed' : 'Request rejected')
+      const r = await action.mutateAsync({ id: a.id, action: act }) as {
+        outcome?: { message: string; wallet_shortfall: WalletShortfall | null } | null
+      }
+      if (r.outcome?.wallet_shortfall) setShortfall(r.outcome.wallet_shortfall)
+      else if (r.outcome?.message) toast(r.outcome.message)
+      else toast(act === 'approve' ? 'Approved & executed' : 'Request rejected')
     } catch (err) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       toast(detail ?? 'Action failed', 'error')
@@ -84,6 +93,7 @@ export function ApprovalsPage() {
         </div>
       </QueryState>
 
+      <FundWalletDialog shortfall={shortfall} onClose={() => setShortfall(null)} />
       <SubmitModal open={open} onClose={() => setOpen(false)} pendingCount={pending.length} />
     </div>
   )

@@ -91,6 +91,20 @@ function WalletCard({ canManage }: { canManage: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [returned])
 
+  // "Fund the wallet" on Loans arrives with ?fund=<amount>: open the top-up
+  // with what the waiting loans need, rather than leave the officer to work
+  // the shortfall out again.
+  const suggested = params.get('fund')
+  useEffect(() => {
+    if (!suggested) return
+    if (canManage && canFund) {
+      setAmount(suggested)
+      setOpen(true)
+    }
+    setParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggested])
+
   async function check(reference: string) {
     try {
       const { topup } = await verify.mutateAsync(reference)

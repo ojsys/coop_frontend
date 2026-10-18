@@ -1,4 +1,5 @@
-import { useDashboard } from '@/api/hooks'
+import { useDashboard, useLoans, useWallet } from '@/api/hooks'
+import { WalletShortBanner } from '@/console/FundWalletPrompt'
 import { useAuth } from '@/auth/AuthContext'
 import { PageHeader } from '@/ui/PageHeader'
 import { StatTile } from '@/ui/StatTile'
@@ -16,8 +17,12 @@ function monthLabel(period: string) {
 }
 
 export function DashboardPage() {
-  const { user } = useAuth()
+  const { user, activeMembership } = useAuth()
   const { data, isLoading, isError } = useDashboard()
+  // Approved loans waiting on an empty wallet are the one thing here that
+  // stops a member being paid, so it is said on arrival, not only on Loans.
+  const { data: loans = [] } = useLoans()
+  const wallet = useWallet()
 
   const firstName = user?.full_name?.split(' ')[0] ?? 'there'
 
@@ -37,6 +42,14 @@ export function DashboardPage() {
           </>
         }
       />
+
+      {wallet.data && (
+        <WalletShortBanner
+          loans={loans}
+          walletBalance={Number(wallet.data.balance)}
+          canManage={activeMembership?.is_privileged ?? false}
+        />
+      )}
 
       {isLoading && (
         <div className="flex justify-center py-20">

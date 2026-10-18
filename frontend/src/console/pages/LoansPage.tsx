@@ -17,6 +17,7 @@ import { QueryState } from '@/ui/QueryState'
 import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
 import { MemberSearchSelect } from '@/ui/MemberSearchSelect'
+import { FundWalletDialog, WalletShortBanner, fundWalletLink, withTopUpFee, type WalletShortfall } from '@/console/FundWalletPrompt'
 import { naira, shortDate } from '@/lib/format'
 import type { DisbursementVerdict, Loan, LoanFinding, LoanProduct, RepaymentClaim } from '@/api/types'
 
@@ -79,6 +80,25 @@ export function LoansPage() {
     }
   }
 
+  // Approving pays out where it can. When the wallet is why it could not, the
+  // officer is asked to fund it there and then — a toast saying "approved"
+  // read as if the member had been paid.
+  const [shortfall, setShortfall] = useState<WalletShortfall | null>(null)
+  async function approve(loan: Loan) {
+    try {
+      const r = await action.mutateAsync({ id: loan.id, action: 'approve' }) as {
+        status: string
+        auto_disbursement_error?: string | null
+        wallet_shortfall?: WalletShortfall | null
+      }
+      if (r.wallet_shortfall) setShortfall(r.wallet_shortfall)
+      else if (r.auto_disbursement_error) toast(r.auto_disbursement_error, 'error')
+      else toast(r.status === 'disbursed' ? "Loan approved and paid to the member's bank" : 'Loan approved')
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not approve the loan'), 'error')
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -100,6 +120,8 @@ export function LoansPage() {
         <StatTile label="Pending approval" value={pending} icon="pending_actions" iconTone="neutral" />
         <StatTile label="Active loans" value={loans.filter((l) => l.status === 'disbursed').length} icon="request_quote" iconTone="green" />
       </div>
+
+      <WalletShortBanner loans={loans} walletBalance={walletBalance} canManage={canManage} />
 
       <div className="mb-4 flex gap-1 rounded-lg border border-line bg-card p-1">
         {(['loans', 'awaiting', 'products'] as const).map((t) => (
@@ -201,7 +223,7 @@ export function LoansPage() {
                   <div className="flex flex-col items-end gap-1.5">
                     {canManage && l.status === 'pending' && (
                       <div className="flex gap-1.5">
-                        <Button size="sm" icon="check" onClick={() => act(l, 'approve', 'Loan approved')}>Approve</Button>
+                        <Button size="sm" icon="check" onClick={() => approve(l)}>Approve</Button>
                         <Button size="sm" variant="secondary" onClick={() => act(l, 'reject', 'Loan rejected')}>Reject</Button>
                       </div>
                     )}
@@ -244,8 +266,16 @@ export function LoansPage() {
                 : current)
           }}
           onPayToBank={async () => {
-            await act(disburseFor, 'pay-electronically',
-                      'Payment sent — the member will be notified')
+            try {
+              await action.mutateAsync({ id: disburseFor.id, action: 'pay-electronically' })
+              toast('Payment sent — the member will be notified')
+            } catch (err) {
+              // The wallet can fall between opening this and pressing pay —
+              // another loan paid first. Ask for funding, not a retry.
+              const data = (err as { response?: { data?: { code?: string; wallet_shortfall?: WalletShortfall } } })?.response?.data
+              if (data?.code === 'wallet_short' && data.wallet_shortfall) setShortfall(data.wallet_shortfall)
+              else toast(apiErrorMessage(err, 'Could not send the payment'), 'error')
+            }
             setDisburseFor(null)
           }}
           onRecordCash={async () => {
@@ -256,6 +286,7 @@ export function LoansPage() {
           busy={action.isPending}
         />
       )}
+      <FundWalletDialog shortfall={shortfall} onClose={() => setShortfall(null)} />
       {scheduleFor && <ScheduleModal loan={scheduleFor} onClose={() => setScheduleFor(null)} />}
       {verifyFor && (
         <VerifyDisbursementModal
@@ -799,7 +830,7 @@ function DisburseModal({ loan, onClose, onPayToBank, onRecordCash, onRefreshDest
                 wallet.
               </span>
             </p>
-            <Link to="/console/wallet">
+            <Link to={fundWalletLink(withTopUpFee(shortfall))}>
               <Button size="sm" variant="secondary" icon="add" className="mt-2">
                 Fund the wallet
               </Button>
