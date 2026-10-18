@@ -415,6 +415,10 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
       bg = const Color(0xFFF7E6E1);
       fg = AppColors.danger;
       label = 'Overdue';
+    } else if (i.amountPaid > 0) {
+      bg = const Color(0xFFFBF0DA);
+      fg = AppColors.goldDeep;
+      label = 'Part paid';
     } else {
       bg = AppColors.sand;
       fg = AppColors.muted2;
@@ -457,6 +461,24 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                   'Due ${shortDate(i.dueDate)} · ${naira(i.principalComponent)} principal + ${naira(i.interestComponent)} interest',
                   style: const TextStyle(color: AppColors.muted2, fontSize: 12),
                 ),
+                // Small payments land here first, so show how far this one is.
+                if (!i.isPaid && i.amountPaid > 0) ...[
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (i.amountPaid / i.amountDue).clamp(0.0, 1.0),
+                      minHeight: 5,
+                      backgroundColor: AppColors.sand,
+                      color: AppColors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${naira(i.amountPaid)} paid · ${naira(i.amountDue - i.amountPaid)} to go',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),
@@ -538,11 +560,14 @@ class _RepaySheetState extends State<_RepaySheet> {
       .where((i) => !i.isPaid)
       .cast<Instalment?>()
       .firstWhere((_) => true, orElse: () => null);
-  late final TextEditingController _amount = TextEditingController(
-    text: _next == null
-        ? ''
-        : (_next.amountDue - _next.amountPaid).toStringAsFixed(2),
-  );
+  // Any amount up to the balance, any day: members repay in small sums as
+  // money comes in. The chips are the two amounts most often wanted.
+  final TextEditingController _amount = TextEditingController();
+
+  void _use(double amount) {
+    _amount.text = amount.toStringAsFixed(2);
+    _refreshQuote();
+  }
   final TextEditingController _note = TextEditingController();
 
   // Paystack's fee is the member's to pay, on top of the repayment, so the
@@ -603,22 +628,43 @@ class _RepaySheetState extends State<_RepaySheet> {
             const SizedBox(height: 16),
             TextField(
               controller: _amount,
-              keyboardType: TextInputType.number,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => _refreshQuote(),
               decoration: const InputDecoration(
                 labelText: 'Amount (₦)',
+                hintText: 'Any amount',
                 border: OutlineInputBorder(),
               ),
             ),
-            if (_next != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Next instalment: ${naira(_next.amountDue - _next.amountPaid)} '
-                  '(due ${shortDate(_next.dueDate)})',
-                  style: const TextStyle(color: AppColors.muted2, fontSize: 12),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (_next != null &&
+                    _next.amountDue - _next.amountPaid < widget.loan.outstanding)
+                  ActionChip(
+                    label: Text(
+                      '${_next.amountPaid > 0 ? 'Rest of' : 'Next'} instalment · '
+                      '${naira(_next.amountDue - _next.amountPaid)}',
+                    ),
+                    onPressed: () => _use(_next.amountDue - _next.amountPaid),
+                  ),
+                ActionChip(
+                  label: Text('Pay it all off · ${naira(widget.loan.outstanding)}'),
+                  onPressed: () => _use(widget.loan.outstanding),
                 ),
-              ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pay any amount, whenever you have it. It goes to your earliest '
+              'unpaid instalment first, and your interest is fixed, so paying '
+              'early never adds to it. You just finish sooner.'
+              '${_next != null ? ' Next due ${shortDate(_next.dueDate)}.' : ''}',
+              style: const TextStyle(color: AppColors.muted2, fontSize: 12),
+            ),
             if (_quote != null && _quote!.fee > 0) ...[
               const SizedBox(height: 12),
               Container(

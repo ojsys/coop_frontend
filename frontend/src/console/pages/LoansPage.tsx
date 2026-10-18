@@ -872,7 +872,7 @@ function ScheduleModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
       <div className="overflow-hidden rounded-xl border border-line">
         <table className="w-full text-sm">
           <thead className="bg-sand text-left text-xs text-muted-2">
-            <tr><th className="px-3 py-2">#</th><th className="px-3 py-2">Due</th><th className="px-3 py-2 text-right">Principal</th><th className="px-3 py-2 text-right">Interest</th><th className="px-3 py-2 text-right">Payment</th><th className="px-3 py-2 text-right">Status</th></tr>
+            <tr><th className="px-3 py-2">#</th><th className="px-3 py-2">Due</th><th className="px-3 py-2 text-right">Principal</th><th className="px-3 py-2 text-right">Interest</th><th className="px-3 py-2 text-right">Payment</th><th className="px-3 py-2 text-right">Paid</th><th className="px-3 py-2 text-right">Status</th></tr>
           </thead>
           <tbody className="divide-y divide-line">
             {rows.map((i) => (
@@ -882,14 +882,15 @@ function ScheduleModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
                 <td className="px-3 py-2 text-right font-mono text-muted">{naira(i.principal_component)}</td>
                 <td className="px-3 py-2 text-right font-mono text-muted">{naira(i.interest_component)}</td>
                 <td className="px-3 py-2 text-right font-mono">{naira(i.amount_due)}</td>
+                <td className="px-3 py-2 text-right font-mono text-muted">{Number(i.amount_paid) > 0 ? naira(i.amount_paid) : '—'}</td>
                 <td className="px-3 py-2 text-right">
-                  <Badge tone={i.status === 'paid' ? 'green' : i.is_overdue ? 'danger' : 'neutral'} dot>
-                    {i.status === 'paid' ? 'Paid' : i.is_overdue ? 'Overdue' : 'Pending'}
+                  <Badge tone={i.status === 'paid' ? 'green' : i.is_overdue ? 'danger' : Number(i.amount_paid) > 0 ? 'gold' : 'neutral'} dot>
+                    {i.status === 'paid' ? 'Paid' : i.is_overdue ? 'Overdue' : Number(i.amount_paid) > 0 ? 'Part paid' : 'Pending'}
                   </Badge>
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted">No schedule.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted">No schedule.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -966,11 +967,20 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
             ]} />
           </Field>
         </div>
-        {next && (
-          <button type="button" onClick={() => setAmount(next.outstanding)} className="text-xs text-green hover:underline">
-            Use next instalment: {naira(next.outstanding)} (due {shortDate(next.due_date)})
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {next && (
+            <button type="button" onClick={() => setAmount(next.outstanding)} className="text-xs text-green hover:underline">
+              Use next instalment: {naira(next.outstanding)} (due {shortDate(next.due_date)})
+            </button>
+          )}
+          <button type="button" onClick={() => setAmount(loan.outstanding)} className="text-xs text-green hover:underline">
+            Clear the loan: {naira(loan.outstanding)}
           </button>
-        )}
+        </div>
+        <p className="text-xs text-muted-2">
+          Any amount is fine — a member can pay in small sums whenever they have money. It goes
+          to the earliest unpaid instalment first; interest is fixed and does not change.
+        </p>
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
           <Button type="submit" size="sm" loading={action.isPending}>Record</Button>

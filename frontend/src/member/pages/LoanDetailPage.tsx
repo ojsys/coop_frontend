@@ -56,6 +56,11 @@ export function LoanDetailPage() {
                     Make a repayment
                   </Button>
                 )}
+                {loan.status === 'disbursed' && (
+                  <p className="mt-2 text-center text-xs text-muted-2">
+                    Pay any amount, any time. Paying early finishes your loan sooner at no extra interest.
+                  </p>
+                )}
                 {loan.status === 'pending' && (
                   <p className="mt-3 rounded-lg bg-sand px-3 py-2 text-center text-[13px] text-muted">Awaiting officer approval.</p>
                 )}
@@ -111,9 +116,20 @@ function Schedule({ loan }: { loan: Loan }) {
               <div className="text-xs text-muted-2">
                 Due {shortDate(i.due_date)} · {naira(i.principal_component)} principal + {naira(i.interest_component)} interest
               </div>
+              {i.status !== 'paid' && Number(i.amount_paid) > 0 && (
+                <div className="mt-1.5">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-sand">
+                    <div className="h-full rounded-full bg-green"
+                      style={{ width: `${Math.min(100, (Number(i.amount_paid) / Number(i.amount_due)) * 100)}%` }} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted">
+                    {naira(i.amount_paid)} paid · {naira(i.outstanding)} to go
+                  </div>
+                </div>
+              )}
             </div>
-            <Badge tone={i.status === 'paid' ? 'green' : i.is_overdue ? 'danger' : 'neutral'} dot>
-              {i.status === 'paid' ? 'Paid' : i.is_overdue ? 'Overdue' : 'Pending'}
+            <Badge tone={i.status === 'paid' ? 'green' : i.is_overdue ? 'danger' : Number(i.amount_paid) > 0 ? 'gold' : 'neutral'} dot>
+              {i.status === 'paid' ? 'Paid' : i.is_overdue ? 'Overdue' : Number(i.amount_paid) > 0 ? 'Part paid' : 'Pending'}
             </Badge>
           </div>
         ))}
@@ -191,8 +207,7 @@ function BankPanel({ loan }: { loan: Loan }) {
 function ReportTransferModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const report = useReportTransfer()
   const toast = useToast()
-  const next = (loan.instalments ?? []).find((i) => i.status !== 'paid')
-  const [amount, setAmount] = useState(next ? next.outstanding : loan.outstanding)
+  const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
 
   async function submit(e: React.FormEvent) {
@@ -211,9 +226,7 @@ function ReportTransferModal({ loan, onClose }: { loan: Loan; onClose: () => voi
   return (
     <Modal open onClose={onClose} title="I've made the transfer" subtitle="Tell your society about the bank transfer you made">
       <form onSubmit={submit} className="space-y-3.5">
-        <Field label="Amount transferred (₦)">
-          <input required type="number" min="0" max={loan.outstanding} value={amount} onChange={(e) => setAmount(e.target.value)} className="input" />
-        </Field>
+        <RepayAmount loan={loan} label="Amount transferred (₦)" value={amount} onChange={setAmount} />
         <Field label="Reference / note (optional)">
           <input value={note} onChange={(e) => setNote(e.target.value)} className="input" placeholder="e.g. GTBank transfer, 29 Jul" />
         </Field>
@@ -224,6 +237,45 @@ function ReportTransferModal({ loan, onClose }: { loan: Loan; onClose: () => voi
         </div>
       </form>
     </Modal>
+  )
+}
+
+/**
+ * How much to repay. Any amount up to the balance is fine, any day — members
+ * pay in small amounts as money comes in. The shortcuts are the two amounts
+ * people most often want: this month's instalment, or everything left.
+ */
+function RepayAmount({ loan, label, value, onChange }: {
+  loan: Loan; label: string; value: string; onChange: (v: string) => void
+}) {
+  const next = (loan.instalments ?? []).find((i) => i.status !== 'paid')
+  const chips: { label: string; amount: string }[] = []
+  if (next && Number(next.outstanding) < Number(loan.outstanding)) {
+    chips.push({ label: `${Number(next.amount_paid) > 0 ? 'Rest of' : 'Next'} instalment · ${naira(next.outstanding)}`, amount: next.outstanding })
+  }
+  chips.push({ label: `Pay it all off · ${naira(loan.outstanding)}`, amount: loan.outstanding })
+  return (
+    <div className="space-y-2">
+      <Field label={label}>
+        <input required type="number" min="1" step="0.01" max={loan.outstanding} value={value}
+          onChange={(e) => onChange(e.target.value)} className="input" placeholder="Any amount" />
+      </Field>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c) => (
+          <button key={c.label} type="button" onClick={() => onChange(c.amount)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              Number(value) === Number(c.amount) ? 'border-green bg-green-50 text-green' : 'border-line text-ink-soft hover:border-green'
+            }`}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-2">
+        Pay any amount, whenever you have it. It goes to your earliest unpaid instalment first,
+        and your interest is fixed, so paying early never adds to it. You just finish sooner.
+        {next && <> Next due {shortDate(next.due_date)}.</>}
+      </p>
+    </div>
   )
 }
 
@@ -240,8 +292,7 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const initiate = useInitiateLoanRepayment()
   const verify = useVerifyLoanRepayment()
   const toast = useToast()
-  const next = (loan.instalments ?? []).find((i) => i.status !== 'paid')
-  const [amount, setAmount] = useState(next ? next.outstanding : '')
+  const [amount, setAmount] = useState('')
   const busy = initiate.isPending || verify.isPending
   const quote = useRepayQuote(loan.id, String(amount))
 
@@ -290,15 +341,7 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   return (
     <Modal open onClose={onClose} title="Make a repayment" subtitle={`Outstanding ${naira(loan.outstanding)}`}>
       <form onSubmit={pay} className="space-y-3.5">
-        <Field label="Amount (₦)">
-          <input required type="number" min="0" max={loan.outstanding} value={amount}
-            onChange={(e) => setAmount(e.target.value)} className="input" />
-        </Field>
-        {next && (
-          <button type="button" onClick={() => setAmount(next.outstanding)} className="text-xs text-green hover:underline">
-            Next instalment: {naira(next.outstanding)} (due {shortDate(next.due_date)})
-          </button>
-        )}
+        <RepayAmount loan={loan} label="Amount (₦)" value={amount} onChange={setAmount} />
         {/* Paystack's fee is the member's to pay, on top of the repayment, so
             the society receives all of it. Shown before they pay. */}
         {quote.data && Number(quote.data.fee) > 0 && (
