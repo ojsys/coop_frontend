@@ -289,28 +289,28 @@ problem report comes in. Play caps it at 50 characters. The notes are what
 members read under "What's new"; Play caps them at 500 characters per
 language, and they go in the box with the language tags as below.
 
-Current release (`1.1.17+19`):
+Current release (`1.1.18+20`):
 
 Release name:
 
 ```
-1.1.17 (19) — Repay in small amounts
+1.1.18 (20) — Switch & join cooperatives
 ```
 
-Release notes (357 / 500 characters):
+Release notes (378 / 500 characters):
 
 ```
 <en-US>
 What's new
-• Repay your loan in small amounts whenever you have money. Any amount goes to your earliest instalment first, and your interest is fixed, so paying early never adds to it
+• Belong to more than one cooperative? Tap your cooperative's name on Home to switch between them in one tap
+• Join another cooperative with the account you already have: search for it or paste its invite link
+• Repay your loan in small amounts whenever you have money. Interest is fixed, so paying early never adds to it
 • Part-paid instalments show how much is left
-• Download my data and Delete my account (Profile → Settings)
-• Complete your profile step by step, then an officer verifies you
 </en-US>
 ```
 
-If 1.1.16 (18) never went out, these notes still cover it: its data download
-and deletion are listed too.
+If 1.1.17 (19) never went out, these notes still cover it: its small loan
+repayments are listed too.
 
 For later releases: name them `<versionName> (<versionCode>)`, and write
 the notes as what a member can now do or what got fixed, in their words, not
