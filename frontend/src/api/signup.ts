@@ -117,6 +117,8 @@ export interface JoinRequest {
   decided_at: string | null
   /** Set once approved — the member number they were admitted under. */
   member_no: string | null
+  /** Already on CooperativeOS (a member elsewhere): signs in as they are. */
+  has_account?: boolean
   created_at: string
 }
 
@@ -191,5 +193,47 @@ export function usePendingJoinRequestCount(enabled = true) {
       })
       return data.count
     },
+  })
+}
+
+
+// ── The signed-in person: joining another society ───────────────────────────
+export interface MyJoinRequest {
+  id: number
+  cooperative_id: number
+  cooperative_name: string
+  cooperative_logo: string | null
+  status: JoinRequestStatus
+  decision_note: string
+  message: string
+  created_at: string
+  decided_at: string | null
+}
+
+/** Requests I've made that are still waiting, or were declined. */
+export function useMyJoinRequests(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: ['my-join-requests'],
+    queryFn: async () => (await api.get<MyJoinRequest[]>('/me/join-requests/')).data,
+  })
+}
+
+/** Ask another society to admit me, with the account I already have. The
+ *  society is the one picked from the search, or an invite code or link. */
+export function useJoinAnother() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { cooperative?: number; code?: string; message?: string }) =>
+      (await api.post<MyJoinRequest>('/me/join-requests/', input)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-join-requests'] }),
+  })
+}
+
+export function useWithdrawJoinRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => { await api.delete(`/me/join-requests/${id}/`) },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-join-requests'] }),
   })
 }

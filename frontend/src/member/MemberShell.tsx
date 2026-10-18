@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Icon } from '@/ui/Icon'
 import { LogoMark } from '@/ui/Logo'
 import { useAuth } from '@/auth/AuthContext'
 import { initials } from '@/lib/format'
 import { SyncBanner } from './SyncBanner'
+import { CooperativesModal } from '@/auth/CooperativesModal'
 
 interface Tab {
   to: string
@@ -28,6 +29,7 @@ const TABS: Tab[] = [
 //     column on the paper canvas (a proper responsive web app, not a toy phone).
 export function MemberShell({ children }: { children: ReactNode }) {
   const { user, activeMembership, logout } = useAuth()
+  const [coops, setCoops] = useState(false)
   // Non-members have no vote; the tab would only lead to a refusal.
   const tabs = activeMembership?.kind === 'non_member'
     ? TABS.filter((t) => t.to !== '/app/vote')
@@ -37,8 +39,12 @@ export function MemberShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-paper">
       {/* Sidebar — tablet & desktop only */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-line-soft bg-card px-4 py-5 md:flex">
-        <div className="flex items-center gap-2.5 px-2">
-          <div className="flex size-9 items-center justify-center overflow-hidden rounded-lg bg-gold">
+        <button
+          onClick={() => setCoops(true)}
+          title="Switch or join a cooperative"
+          className="-mx-1 flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left transition hover:bg-sand-deep"
+        >
+          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gold">
             {activeMembership?.cooperative_logo ? (
               <img
                 src={activeMembership.cooperative_logo}
@@ -49,13 +55,16 @@ export function MemberShell({ children }: { children: ReactNode }) {
               <LogoMark size={26} />
             )}
           </div>
-          <div className="leading-tight">
+          <div className="min-w-0 leading-tight">
             <div className="truncate font-display text-[15px] font-semibold text-ink">
               {activeMembership?.cooperative_name || 'CooperativeOS'}
             </div>
-            <div className="text-[11px] text-muted-2">Member portal</div>
+            <div className="text-[11px] text-muted-2">
+              {(user?.memberships.length ?? 0) > 1 ? 'Switch cooperative' : 'Member portal'}
+            </div>
           </div>
-        </div>
+          <Icon name="unfold_more" size={18} className="ml-auto shrink-0 text-muted-2" />
+        </button>
 
         <nav className="mt-6 flex-1 space-y-1">
           {tabs.map((t) => (
@@ -106,6 +115,8 @@ export function MemberShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </aside>
+
+      <CooperativesModal open={coops} onClose={() => setCoops(false)} />
 
       {/* Main column */}
       <div className="flex min-h-screen flex-1 flex-col">

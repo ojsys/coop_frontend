@@ -6,6 +6,7 @@ import 'savings_tab.dart';
 import 'contribute_tab.dart';
 import 'vote_tab.dart';
 import 'profile_tab.dart';
+import 'cooperatives_sheet.dart';
 
 /// The signed-in member shell: loads the profile once, then hosts the five
 /// member tabs (Home / Savings / Contribute / Vote / Profile) behind a bottom
@@ -29,9 +30,28 @@ class _MemberScaffoldState extends State<MemberScaffold> {
     // Without a tenant bound, every data endpoint fails closed. An install that
     // signed in before that was fixed still has no cooperative id stored.
     await widget.api.adoptTenant(user);
-    final membership =
-        user.memberships.isNotEmpty ? user.memberships.first : null;
-    return Session(user, membership);
+    // The society the member last chose; the first one if they have since
+    // left it (or never chose).
+    Membership? membership;
+    for (final m in user.memberships) {
+      if (m.cooperativeId == widget.api.cooperativeId) membership = m;
+    }
+    membership ??= user.memberships.isNotEmpty ? user.memberships.first : null;
+    if (membership != null &&
+        membership.cooperativeId != widget.api.cooperativeId) {
+      await widget.api.switchCooperative(membership.cooperativeId);
+    }
+    return Session(user, membership, onSwitch: _switchTo);
+  }
+
+  /// One tap in the cooperatives sheet: every tab reloads for that society.
+  Future<void> _switchTo(int cooperativeId) async {
+    await widget.api.switchCooperative(cooperativeId);
+    if (!mounted) return;
+    setState(() {
+      _index = 0;
+      _future = _load();
+    });
   }
 
   void _go(int i) => setState(() => _index = i);
@@ -84,11 +104,23 @@ class _MemberScaffoldState extends State<MemberScaffold> {
                     Text(
                       'Signed in as ${s.user.email}, but this account is not a '
                       'member of any cooperative yet, so there is nothing to '
-                      'show. An officer needs to add you as a member.',
+                      'show. Ask to join one, and an officer will admit you.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    FilledButton(
+                    FilledButton.icon(
+                      onPressed: () => showCooperativesSheet(
+                        context,
+                        api: widget.api,
+                        user: s.user,
+                        onSwitch: _switchTo,
+                        startJoining: true,
+                      ).then((_) => setState(() => _future = _load())),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Join a cooperative'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
                       onPressed: widget.onSignOut,
                       child: const Text('Sign out'),
                     ),
@@ -112,7 +144,12 @@ class _MemberScaffoldState extends State<MemberScaffold> {
         final index = _index < tabs.length ? _index : 0;
 
         return Scaffold(
-          body: IndexedStack(index: index, children: tabs),
+          // Keyed by society, so switching rebuilds every tab from scratch
+          // rather than leaving the last society's figures on screen.
+          body: KeyedSubtree(
+            key: ValueKey(s.membership!.cooperativeId),
+            child: IndexedStack(index: index, children: tabs),
+          ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: index,
             onDestinationSelected: _go,
@@ -134,7 +171,10 @@ class _MemberScaffoldState extends State<MemberScaffold> {
 }
 
 class Session {
-  Session(this.user, this.membership);
+  Session(this.user, this.membership, {required this.onSwitch});
   final CurrentUser user;
   final Membership? membership;
+
+  /// Make another of the member's societies the active one.
+  final Future<void> Function(int cooperativeId) onSwitch;
 }

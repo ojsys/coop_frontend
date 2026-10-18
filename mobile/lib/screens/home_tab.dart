@@ -7,6 +7,7 @@ import 'member_scaffold.dart';
 import 'loans_screen.dart';
 import 'savings_goals_screen.dart';
 import 'dividends_screen.dart';
+import 'cooperatives_sheet.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({
@@ -79,9 +80,56 @@ class _HomeTabState extends State<HomeTab> {
     final isMember = m?.isMember ?? true;
     final lines = data.statement?.lines ?? [];
 
+    final many = user.memberships.length > 1;
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
       children: [
+        // Which society this is, and the way to switch or join another.
+        // Always offered: joining a second one starts here.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: AppColors.green50,
+            shape: const StadiumBorder(),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () => showCooperativesSheet(
+                context,
+                api: widget.api,
+                user: user,
+                onSwitch: widget.session.onSwitch,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 7, 10, 7),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.storefront_outlined,
+                        size: 16, color: AppColors.green),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        m?.cooperativeName ?? 'CooperativeOS',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: AppColors.green,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(many ? Icons.unfold_more : Icons.add,
+                        size: 16, color: AppColors.green),
+                    if (!many)
+                      const Text(' Join another',
+                          style: TextStyle(
+                              color: AppColors.green, fontSize: 13)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
         // Header: greeting + avatar
         Padding(
           padding: const EdgeInsets.only(top: 8, bottom: 16),

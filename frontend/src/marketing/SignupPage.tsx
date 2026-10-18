@@ -7,8 +7,10 @@ import { Button } from '@/ui/Button'
 import { LocationSelect, CoopTypeSelect } from '@/ui/StateLGASelect'
 import { apiErrorMessage } from '@/lib/apiError'
 import { usePublicBranding, usePublicSiteContent } from '@/api/public'
+import { useAuth } from '@/auth/AuthContext'
 import {
   useApplyForCooperative,
+  useJoinAnother,
   useJoinLink,
   useRequestToJoin,
   useSocietySearch,
@@ -480,6 +482,11 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
 // ── A member joining ────────────────────────────────────────────────────────
 function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => void }) {
   const join = useRequestToJoin()
+  // Already signed in (a member of another society, following an invite):
+  // ask with that account. No details to retype and no second account.
+  const { user } = useAuth()
+  const signedIn = user && !user.is_platform_admin ? user : null
+  const joinAnother = useJoinAnother()
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<PublicSociety | null>(null)
   // The invite link's society stands until the visitor picks another.
@@ -503,11 +510,26 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
     if (!society) return
     setError(null)
     try {
-      await join.mutateAsync({ cooperative: society.id, ...form })
+      if (signedIn) await joinAnother.mutateAsync({ cooperative: society.id, message: form.message })
+      else await join.mutateAsync({ cooperative: society.id, ...form })
       setDone(true)
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not send your request.'))
     }
+  }
+
+  if (done && signedIn) {
+    return (
+      <Done
+        title="Request sent"
+        body={`An officer of ${society?.name ?? 'the cooperative'} will review your request.`}
+        next={[
+          'An officer checks your details against their member register.',
+          'When they admit you, we email you — there is nothing new to set up.',
+          'The cooperative then appears when you tap your cooperative’s name in the app, so you can switch with one tap.',
+        ]}
+      />
+    )
   }
 
   if (done) {
@@ -638,6 +660,17 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
             )}
           </Field>
 
+          {signedIn ? (
+            <div className="flex items-center gap-3 rounded-md border border-line bg-sand/50 px-3.5 py-2.5 text-sm">
+              <Icon name="account_circle" size={20} className="shrink-0 text-muted" />
+              <div className="min-w-0">
+                <div className="truncate font-medium text-ink">Asking as {signedIn.full_name}</div>
+                <div className="truncate text-xs text-muted">
+                  {signedIn.email} · with the account you already have
+                </div>
+              </div>
+            </div>
+          ) : (<>
           <Field label="Your full name">
             <input
               required
@@ -667,6 +700,7 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
               />
             </Field>
           </div>
+          </>)}
 
           <Field
             label="Anything the officers should know?"
@@ -687,7 +721,7 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
           <Button type="button" variant="ghost" onClick={onBack}>
             Back
           </Button>
-          <Button type="submit" disabled={!society} loading={join.isPending}>
+          <Button type="submit" disabled={!society} loading={join.isPending || joinAnother.isPending}>
             {society ? 'Send request' : 'Choose your cooperative first'}
           </Button>
         </div>

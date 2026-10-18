@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 import { landingSurface, type Surface } from '@/api/auth'
 import { FullscreenSpinner } from '@/ui/Spinner'
@@ -21,8 +21,19 @@ export function RequireSurface({
   surface: Surface
   children: ReactNode
 }) {
-  const { user, loading } = useAuth()
-  if (loading) return <FullscreenSpinner />
+  const { user, loading, activeMembership, setActiveCooperativeId } = useAuth()
+  // The console works on one society at a time, and only where you hold
+  // office. Someone who last looked at a society they are only a member of
+  // (in the member app) lands on the first one they serve.
+  const officerElsewhere =
+    surface === 'console' && activeMembership && !activeMembership.is_officer
+      ? user?.memberships.find((m) => m.is_officer)
+      : undefined
+  useEffect(() => {
+    if (officerElsewhere) setActiveCooperativeId(officerElsewhere.cooperative_id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [officerElsewhere?.cooperative_id])
+  if (loading || officerElsewhere) return <FullscreenSpinner />
   if (!user) return <Navigate to="/login" replace />
 
   const allowed =

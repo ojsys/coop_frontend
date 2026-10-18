@@ -5,6 +5,7 @@ import { useMemberStatement, useResolutions } from '@/api/hooks'
 import { Icon } from '@/ui/Icon'
 import { Avatar } from '@/ui/Avatar'
 import { Modal } from '@/ui/Modal'
+import { CooperativesModal } from '@/auth/CooperativesModal'
 import { naira, shortDate, lineAmount, signedNaira } from '@/lib/format'
 
 export function HomePage() {
@@ -13,6 +14,8 @@ export function HomePage() {
   const { data: statement } = useMemberStatement(mid)
   const { data: resolutions = [] } = useResolutions()
   const [shareInfo, setShareInfo] = useState(false)
+  const [coops, setCoops] = useState(false)
+  const many = (user?.memberships.length ?? 0) > 1
 
   // Someone the society serves who has not joined: no vote, no shares, no
   // dividends — so none of those are offered.
@@ -23,7 +26,18 @@ export function HomePage() {
   return (
     <div>
       {/* Green header with savings hero */}
-      <div className="bg-green px-5 pb-8 pt-7 text-paper md:rounded-2xl">
+      <div className="bg-green px-5 pb-8 pt-5 text-paper md:rounded-2xl">
+        {/* Which society you're looking at, and the way to switch or join
+            another. Always offered: joining a second one starts here. */}
+        <button
+          onClick={() => setCoops(true)}
+          className="mb-4 flex max-w-full items-center gap-1.5 rounded-full bg-[#093f2f] py-1.5 pl-3 pr-2 text-[13px] font-medium transition active:scale-[0.98]"
+        >
+          <Icon name="storefront" size={16} className="shrink-0 text-green-200" />
+          <span className="truncate">{activeMembership?.cooperative_name}</span>
+          <Icon name={many ? 'unfold_more' : 'add'} size={16} className="shrink-0 text-green-200" />
+          {!many && <span className="shrink-0 text-green-200">Join another</span>}
+        </button>
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm text-green-200">Good afternoon,</div>
@@ -143,6 +157,7 @@ export function HomePage() {
           )}
         </div>
       </div>
+      <CooperativesModal open={coops} onClose={() => setCoops(false)} />
     </div>
   )
 }

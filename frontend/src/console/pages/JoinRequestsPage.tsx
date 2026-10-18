@@ -72,8 +72,14 @@ export function JoinRequestsPage() {
               <Card key={r.id}>
                 <div className="flex flex-wrap items-start gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="font-display text-[15px] font-semibold text-ink">
+                    <div className="flex flex-wrap items-center gap-2 font-display text-[15px] font-semibold text-ink">
                       {r.full_name}
+                      {r.status === 'pending' && r.has_account && (
+                        <span title="Already on CooperativeOS — a member of another society. Admitting them adds yours to their account."
+                          className="rounded-full bg-green-50 px-2 py-0.5 font-sans text-[11px] font-medium text-green">
+                          Has an account
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 text-[13px] text-muted">
                       {r.email}
@@ -159,8 +165,9 @@ function ApproveModal({
     >
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm leading-relaxed text-muted">
-          This creates their account and emails them a link to set their own
-          password. We never send a password itself.
+          {request?.has_account
+            ? 'They already have a CooperativeOS account. Admitting them adds your society to it, and we email them to say they can switch to it.'
+            : 'This creates their account and emails them a link to set their own password. We never send a password itself.'}
         </p>
 
         <Field label="Member number" hint="Must be unique within your society.">

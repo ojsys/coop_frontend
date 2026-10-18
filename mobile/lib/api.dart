@@ -25,6 +25,16 @@ class Api {
 
   bool get isAuthenticated => _token != null;
 
+  /// The society every tenant-scoped call is made for.
+  int? get cooperativeId => _cooperativeId;
+
+  /// Make another of the member's societies the active one. Remembered, so
+  /// the app opens on it next time too.
+  Future<void> switchCooperative(int id) async {
+    _cooperativeId = id;
+    await _persist();
+  }
+
   /// Adopt the tenant implied by the signed-in user's own membership.
   ///
   /// A session created before the fix above persisted a token with no
@@ -371,6 +381,37 @@ class Api {
           await _post('/me/deletion-request/', {'reason': reason}));
 
   Future<void> cancelDeletion() async => _delete('/me/deletion-request/');
+
+  // ── Joining another cooperative, with this account ──────────────────────
+  /// Live societies matching a name. Search only — never a full listing.
+  Future<List<Society>> searchSocieties(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return [];
+    final list =
+        await _getList('/public/societies/?q=${Uri.encodeQueryComponent(q)}');
+    return list.map((j) => Society.fromJson(j as Map<String, dynamic>)).toList();
+  }
+
+  /// Requests still waiting, or recently declined.
+  Future<List<MyJoinRequest>> myJoinRequests() async {
+    final list = await _getList('/me/join-requests/');
+    return list
+        .map((j) => MyJoinRequest.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Ask a society to admit this account: one picked from the search, or an
+  /// invite code or pasted link.
+  Future<MyJoinRequest> joinAnother(
+          {int? cooperativeId, String? code, String message = ''}) async =>
+      MyJoinRequest.fromJson(await _post('/me/join-requests/', {
+        if (cooperativeId != null) 'cooperative': cooperativeId,
+        if (code != null) 'code': code,
+        'message': message,
+      }));
+
+  Future<void> withdrawJoinRequest(int id) async =>
+      _delete('/me/join-requests/$id/');
 
   Future<List<LoanProduct>> loanProducts() async {
     final list = await _getList('/me/loan-products/');
@@ -1165,4 +1206,45 @@ class DeletionState {
       }).toList(),
     );
   }
+}
+
+
+class Society {
+  Society({required this.id, required this.name, required this.place});
+  final int id;
+  final String name;
+  final String place;
+
+  factory Society.fromJson(Map<String, dynamic> j) => Society(
+        id: j['id'] as int,
+        name: j['name'] as String,
+        place: [j['lga'], j['state']]
+            .where((v) => v != null && '$v'.isNotEmpty)
+            .join(', '),
+      );
+}
+
+class MyJoinRequest {
+  MyJoinRequest({
+    required this.id,
+    required this.cooperativeId,
+    required this.cooperativeName,
+    required this.status,
+    required this.decisionNote,
+  });
+  final int id;
+  final int cooperativeId;
+  final String cooperativeName;
+  final String status; // pending | rejected
+  final String decisionNote;
+
+  bool get isPending => status == 'pending';
+
+  factory MyJoinRequest.fromJson(Map<String, dynamic> j) => MyJoinRequest(
+        id: j['id'] as int,
+        cooperativeId: j['cooperative_id'] as int,
+        cooperativeName: j['cooperative_name'] as String,
+        status: j['status'] as String,
+        decisionNote: j['decision_note'] as String? ?? '',
+      );
 }
