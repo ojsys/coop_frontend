@@ -8,6 +8,7 @@ import { naira } from '@/lib/format'
 const NAV: NavItem[] = [
   { to: '/platform', label: 'Command Center', icon: 'dashboard', end: true },
   { to: '/platform/cooperatives', label: 'Cooperatives', icon: 'apartment' },
+  { to: '/platform/users', label: 'Users', icon: 'manage_accounts' },
   { to: '/platform/onboarding', label: 'Onboarding', icon: 'conveyor_belt' },
   { to: '/platform/billing', label: 'Billing', icon: 'receipt_long' },
   { to: '/platform/white-label', label: 'White-label', icon: 'palette' },

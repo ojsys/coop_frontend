@@ -20,6 +20,8 @@ import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { timeAgo, longDate } from '@/lib/format'
 import type { Member } from '@/api/types'
+import { api } from '@/api/client'
+import { session } from '@/api/session'
 import {
   downloadMyData,
   useCancelDeletion,
@@ -39,6 +41,7 @@ export function ProfilePage() {
   const photoRef = useRef<HTMLInputElement>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   async function exportData() {
@@ -184,6 +187,11 @@ export function ProfilePage() {
             <span className="text-sm font-medium">Privacy notice</span>
           </Link>
           <div className="border-t border-line" />
+          <button onClick={() => setPasswordOpen(true)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-ink-soft transition hover:bg-sand-deep">
+            <Icon name="lock" size={20} />
+            <span className="text-sm font-medium">Change password</span>
+          </button>
+          <div className="border-t border-line" />
           {/* Your data, yours to take and to have deleted — next to the
               privacy notice that explains both. */}
           <button onClick={exportData} disabled={exporting} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-ink-soft transition hover:bg-sand-deep disabled:opacity-60">
@@ -205,8 +213,64 @@ export function ProfilePage() {
 
       {editOpen && p && <EditKycModal profile={p} onClose={() => setEditOpen(false)} />}
       {deleteOpen && <DeleteAccountModal onClose={() => setDeleteOpen(false)} onExport={exportData} exporting={exporting} />}
+      {passwordOpen && <ChangePasswordModal onClose={() => setPasswordOpen(false)} />}
       {docType && <UploadDocModal initialType={docType} onClose={() => setDocType(null)} />}
     </div>
+  )
+}
+
+/** Change your own password. The server rotates the sign-in token, which signs
+ *  out every other device; this one stores the new token and carries on. */
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const toast = useToast()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const mismatch = confirm.length > 0 && next !== confirm
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (next !== confirm) return
+    setSaving(true)
+    try {
+      const { data } = await api.post<{ detail: string; token: string }>('/me/password/', {
+        current_password: current,
+        new_password: next,
+      })
+      session.setToken(data.token)
+      toast('Password changed. Other devices have been signed out.')
+      onClose()
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not change your password'), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Change password" subtitle="You will stay signed in here; other devices will be signed out.">
+      <form onSubmit={submit} className="space-y-3">
+        <Field label="Current password">
+          <input className="input" type="password" autoComplete="current-password" value={current}
+            onChange={(e) => setCurrent(e.target.value)} required />
+        </Field>
+        <Field label="New password" hint="At least 8 characters, not all numbers, and not too common.">
+          <input className="input" type="password" autoComplete="new-password" value={next}
+            onChange={(e) => setNext(e.target.value)} minLength={8} required />
+        </Field>
+        <Field label="Confirm new password" hint={mismatch ? 'The passwords do not match.' : undefined}>
+          <input className="input" type="password" autoComplete="new-password" value={confirm}
+            onChange={(e) => setConfirm(e.target.value)} required />
+        </Field>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={saving} disabled={!current || next.length < 8 || next !== confirm}>
+            Change password
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

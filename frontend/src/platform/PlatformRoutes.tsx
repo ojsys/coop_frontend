@@ -11,6 +11,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage'
 import { HealthPage } from './pages/HealthPage'
 import { PlatformSettingsPage } from './pages/PlatformSettingsPage'
 import { GuidePage } from './pages/GuidePage'
+import { UsersPage } from './pages/UsersPage'
 
 export function PlatformRoutes() {
   return (
@@ -19,6 +20,7 @@ export function PlatformRoutes() {
         <Route index element={<CommandCenterPage />} />
         <Route path="cooperatives" element={<CooperativesPage />} />
         <Route path="cooperatives/:id" element={<CooperativeDetailPage />} />
+        <Route path="users" element={<UsersPage />} />
         <Route path="provision" element={<ProvisionPage />} />
         <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="billing" element={<BillingPage />} />
