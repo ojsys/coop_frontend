@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { DisbursementEvidence, Loan, WalletTopUp } from './types'
+import type { DisbursementEvidence, Loan, LoanRepayment, WalletTopUp } from './types'
 
 // Invalidate everything tenant-scoped after a write — simplest correct default
 // given how interconnected the ledger, contributions and dashboards are.
@@ -243,10 +243,39 @@ export function useVerifyLoanRepayment() {
 export function useReportTransfer() {
   const invalidate = useInvalidateAll()
   return useMutation({
-    mutationFn: async (input: { loanId: number; amount: string; note?: string }) => {
+    mutationFn: async (input: { loanId: number; amount?: string; note?: string; transfer?: number }) => {
       const { loanId, ...body } = input
       const { data } = await api.post(`/me/loans/${loanId}/report-transfer/`, body)
       return data
+    },
+    onSuccess: invalidate,
+  })
+}
+
+export type StartedTransfer = LoanRepayment & {
+  psp_reference: string
+  expires_at: string
+  bank: { bank_name: string; account_name: string; account_no: string }
+}
+
+/** Begin a fee-free repayment by bank transfer: the society's account, the
+ *  amount, a narration reference and a 30-minute window. */
+export function useStartTransfer() {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: async ({ loanId, amount }: { loanId: number; amount: string }) => {
+      const { data } = await api.post<StartedTransfer>(`/me/loans/${loanId}/start-transfer/`, { amount })
+      return data
+    },
+    onSuccess: invalidate,
+  })
+}
+
+export function useCancelTransfer() {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: async ({ loanId, transfer }: { loanId: number; transfer: number }) => {
+      await api.post(`/me/loans/${loanId}/cancel-transfer/`, { transfer })
     },
     onSuccess: invalidate,
   })

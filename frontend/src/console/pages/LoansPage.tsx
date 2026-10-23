@@ -620,7 +620,7 @@ function ClaimFacts({ claim: c, verb }: { claim: RepaymentClaim; verb: string })
       <div className="text-xs text-muted-2">
         {c.product_name} · {verb} <span className="font-mono text-ink-soft">{naira(c.amount)}</span> · outstanding {naira(c.outstanding)}
         {c.note && ` · “${c.note}”`}
-        {c.channel === 'psp' && c.psp_reference && <> · <span className="font-mono">{c.psp_reference}</span></>}
+        {c.psp_reference && <> · {c.channel === 'transfer' && 'narration '}<span className="font-mono">{c.psp_reference}</span></>}
       </div>
       {c.channel !== 'psp' && c.member_bank_account_no && (
         <div className="text-xs text-muted-2">From: {c.member_bank_name} {c.member_bank_account_no}</div>

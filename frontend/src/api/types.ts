@@ -170,6 +170,10 @@ export interface LoanRepayment {
   channel?: string
   status?: string
   note?: string
+  /** For a bank transfer, the code the member puts in the narration. */
+  psp_reference?: string
+  /** Set only on a bank transfer started but not yet reported as sent. */
+  expires_at?: string | null
   created_at: string
 }
 

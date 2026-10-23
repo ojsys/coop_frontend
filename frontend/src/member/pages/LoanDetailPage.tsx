@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMyLoan, useRepayQuote } from '@/api/hooks'
-import { useInitiateLoanRepayment, useVerifyLoanRepayment, useReportTransfer } from '@/api/mutations'
+import { useInitiateLoanRepayment, useVerifyLoanRepayment, useReportTransfer, useStartTransfer, useCancelTransfer, type StartedTransfer } from '@/api/mutations'
 import { MemberHeader } from '../MemberShell'
 import { BackLink } from './LoansPage'
 import { Icon } from '@/ui/Icon'
@@ -14,7 +14,7 @@ import { useToast } from '@/ui/toast'
 import { naira, nairaKobo, shortDate } from '@/lib/format'
 import { openPaystackCheckout } from '@/lib/paystack'
 import { apiErrorMessage } from '@/lib/apiError'
-import type { Loan } from '@/api/types'
+import type { Loan, LoanRepayment } from '@/api/types'
 
 const tone = (s: string) =>
   s === 'repaid' || s === 'approved' ? 'green' : s === 'rejected' ? 'danger' : s === 'disbursed' ? 'gold' : 'neutral'
@@ -69,6 +69,7 @@ export function LoanDetailPage() {
                 )}
               </div>
 
+              {loan.status === 'disbursed' && <UnsentTransfer loan={loan} onContinue={() => setPayOpen(true)} />}
               {loan.status === 'disbursed' && <PendingClaims loan={loan} />}
 
               {(loan.instalments?.length ?? 0) > 0 ? (
@@ -166,7 +167,7 @@ function SchedulePreview({ loan }: { loan: Loan }) {
 }
 
 function PendingClaims({ loan }: { loan: Loan }) {
-  const claims = (loan.repayments ?? []).filter((r) => r.status === 'pending' && r.channel === 'transfer')
+  const claims = (loan.repayments ?? []).filter((r) => r.status === 'pending' && r.channel === 'transfer' && !r.expires_at)
   if (claims.length === 0) return null
   return (
     <div className="rounded-2xl border border-gold-50 bg-gold-50 p-4">
@@ -182,6 +183,46 @@ function PendingClaims({ loan }: { loan: Loan }) {
   )
 }
 
+/** A bank transfer started here but not yet reported as sent. */
+function unsentTransfer(loan: Loan): LoanRepayment | undefined {
+  return (loan.repayments ?? []).find((r) => r.status === 'pending' && r.channel === 'transfer' && !!r.expires_at)
+}
+
+/** Seconds left until ``expiresAt``, ticking once a second. */
+function useSecondsLeft(expiresAt?: string | null) {
+  const left = () => (expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : 0)
+  const [secs, setSecs] = useState(left)
+  useEffect(() => {
+    setSecs(left())
+    if (!expiresAt) return
+    const t = window.setInterval(() => setSecs(left()), 1000)
+    return () => window.clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expiresAt])
+  return secs
+}
+
+const mmss = (secs: number) => `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`
+
+function UnsentTransfer({ loan, onContinue }: { loan: Loan; onContinue: () => void }) {
+  const t = unsentTransfer(loan)
+  const secs = useSecondsLeft(t?.expires_at)
+  if (!t) return null
+  return (
+    <button onClick={onContinue}
+      className="flex w-full items-center gap-3 rounded-2xl border border-gold/30 bg-gold-50 p-4 text-left">
+      <Icon name="timer" size={22} className="shrink-0 text-gold-deep" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-semibold text-ink">Bank transfer of {naira(t.amount)} started</div>
+        <div className="text-xs text-muted">
+          {secs > 0 ? <>{mmss(secs)} left to send it. Tap to see the account details.</> : <>Time's up. Tap if you already sent it.</>}
+        </div>
+      </div>
+      <Icon name="chevron_right" size={20} className="shrink-0 text-muted-2" />
+    </button>
+  )
+}
+
 function BankPanel({ loan }: { loan: Loan }) {
   const b = loan.coop_bank!
   const [open, setOpen] = useState(false)
@@ -190,7 +231,7 @@ function BankPanel({ loan }: { loan: Loan }) {
       <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-ink">
         <Icon name="account_balance" size={18} className="text-muted-2" /> Pay by direct transfer
       </div>
-      <p className="mb-3 text-xs text-muted">Prefer your bank app? Transfer to your society's account, then tap “I've made the transfer” so an officer can confirm it.</p>
+      <p className="mb-3 text-xs text-muted">Sent money to your society's account without starting it under “Make a repayment”? Tell your society here so an officer can confirm it.</p>
       <dl className="space-y-1.5 text-sm">
         <Row label="Bank" value={b.bank_name} />
         <Row label="Account name" value={b.account_name} />
@@ -291,9 +332,19 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
 function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const initiate = useInitiateLoanRepayment()
   const verify = useVerifyLoanRepayment()
+  const startTransfer = useStartTransfer()
   const toast = useToast()
+  const canTransfer = !!loan.coop_bank
+  // A transfer already under way picks up where it was left.
+  const unsent = unsentTransfer(loan)
+  const [transfer, setTransfer] = useState<StartedTransfer | null>(
+    unsent && loan.coop_bank
+      ? { ...unsent, psp_reference: unsent.psp_reference ?? '', expires_at: unsent.expires_at!, bank: loan.coop_bank }
+      : null,
+  )
+  const [method, setMethod] = useState<'transfer' | 'paystack'>(canTransfer ? 'transfer' : 'paystack')
   const [amount, setAmount] = useState('')
-  const busy = initiate.isPending || verify.isPending
+  const busy = initiate.isPending || verify.isPending || startTransfer.isPending
   const quote = useRepayQuote(loan.id, String(amount))
 
   // The server says "received" only once Paystack confirms the full amount
@@ -308,9 +359,7 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
     }
   }
 
-  async function pay(e: React.FormEvent) {
-    e.preventDefault()
-    if (!amount || Number(amount) <= 0) { toast('Enter an amount', 'error'); return }
+  async function payWithPaystack() {
     const reference = `LRPY-${crypto.randomUUID()}`
     try {
       const res = await initiate.mutateAsync({
@@ -333,30 +382,195 @@ function RepayModal({ loan, onClose }: { loan: Loan; onClose: () => void }) {
       if (res.authorization_url) { window.location.href = res.authorization_url; return }
       toast('Payment could not be started. Please try again.', 'error')
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast(detail ?? 'Could not start payment', 'error')
+      toast(apiErrorMessage(err, 'Could not start payment'), 'error')
     }
   }
 
+  async function pay(e: React.FormEvent) {
+    e.preventDefault()
+    if (!amount || Number(amount) <= 0) { toast('Enter an amount', 'error'); return }
+    if (method === 'paystack') { await payWithPaystack(); return }
+    try {
+      setTransfer(await startTransfer.mutateAsync({ loanId: loan.id, amount }))
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not get the account details'), 'error')
+    }
+  }
+
+  if (transfer) {
+    return (
+      <Modal open onClose={onClose} title="Pay by bank transfer" subtitle="No Paystack fee — straight to your society's account">
+        <TransferDetails loan={loan} transfer={transfer} onDone={onClose}
+          onRestart={() => { setAmount(transfer.amount); setTransfer(null) }} />
+      </Modal>
+    )
+  }
+
+  const fee = quote.data ? Number(quote.data.fee) : 0
   return (
     <Modal open onClose={onClose} title="Make a repayment" subtitle={`Outstanding ${naira(loan.outstanding)}`}>
       <form onSubmit={pay} className="space-y-3.5">
         <RepayAmount loan={loan} label="Amount (₦)" value={amount} onChange={setAmount} />
+
+        {canTransfer && (
+          <div className="space-y-2">
+            <div className="text-[13px] font-medium text-ink">How do you want to pay?</div>
+            <MethodOption selected={method === 'transfer'} onSelect={() => setMethod('transfer')}
+              icon="account_balance" title="Bank transfer" badge="No fee"
+              detail="Send it from your bank app to your society's account within 30 minutes. An officer confirms it once it arrives." />
+            <MethodOption selected={method === 'paystack'} onSelect={() => setMethod('paystack')}
+              icon="credit_card" title="Card or USSD with Paystack"
+              badge={fee > 0 ? `+ ${nairaKobo(fee)} fee` : undefined}
+              detail="Confirmed straight away. Paystack's fee is added on top." />
+          </div>
+        )}
+
         {/* Paystack's fee is the member's to pay, on top of the repayment, so
             the society receives all of it. Shown before they pay. */}
-        {quote.data && Number(quote.data.fee) > 0 && (
+        {method === 'paystack' && quote.data && fee > 0 && (
           <div className="rounded-xl bg-sand-deep px-3 py-2.5 text-xs text-muted">
             <div className="flex justify-between"><span>Repayment</span><span className="font-mono">{nairaKobo(quote.data.amount)}</span></div>
             <div className="flex justify-between"><span>Paystack fee</span><span className="font-mono">{nairaKobo(quote.data.fee)}</span></div>
             <div className="mt-1 flex justify-between border-t border-line pt-1 font-semibold text-ink"><span>You pay</span><span className="font-mono">{nairaKobo(quote.data.total)}</span></div>
           </div>
         )}
+
         <button type="submit" disabled={busy}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-green py-3.5 font-semibold text-paper transition hover:bg-green-hover disabled:opacity-50">
-          <Icon name="lock" size={18} /> Pay {quote.data ? nairaKobo(quote.data.total) : amount ? naira(amount) : ''} with Paystack
+          {method === 'transfer' ? (
+            <><Icon name="account_balance" size={18} /> Show account details</>
+          ) : (
+            <><Icon name="lock" size={18} /> Pay {quote.data ? nairaKobo(quote.data.total) : amount ? naira(amount) : ''} with Paystack</>
+          )}
         </button>
-        <p className="text-center text-xs text-muted-2">Card, bank transfer & USSD · settles to your society</p>
+        {method === 'paystack' && (
+          <p className="text-center text-xs text-muted-2">Card, bank transfer & USSD · settles to your society</p>
+        )}
       </form>
     </Modal>
+  )
+}
+
+function MethodOption({ selected, onSelect, icon, title, badge, detail }: {
+  selected: boolean; onSelect: () => void; icon: string; title: string; badge?: string; detail: string
+}) {
+  return (
+    <button type="button" onClick={onSelect}
+      className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+        selected ? 'border-green bg-green-50' : 'border-line hover:border-green'
+      }`}>
+      <Icon name={selected ? 'radio_button_checked' : 'radio_button_unchecked'} size={20}
+        className={`mt-0.5 shrink-0 ${selected ? 'text-green' : 'text-muted-2'}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <Icon name={icon} size={16} className="text-muted-2" />
+          <span className="text-sm font-semibold text-ink">{title}</span>
+          {badge && <Badge tone={badge === 'No fee' ? 'green' : 'neutral'}>{badge}</Badge>}
+        </div>
+        <p className="mt-0.5 text-xs text-muted">{detail}</p>
+      </div>
+    </button>
+  )
+}
+
+/**
+ * The society's account, the exact amount and a narration reference, with 30
+ * minutes on the clock. "I've sent it" is what tells an officer to look for it.
+ * After the time is up the member can still say they sent it — money that
+ * arrived late is still theirs — or start again.
+ */
+function TransferDetails({ loan, transfer, onDone, onRestart }: {
+  loan: Loan; transfer: StartedTransfer; onDone: () => void; onRestart: () => void
+}) {
+  const report = useReportTransfer()
+  const cancel = useCancelTransfer()
+  const toast = useToast()
+  const secs = useSecondsLeft(transfer.expires_at)
+  const expired = secs <= 0
+  const urgent = !expired && secs < 5 * 60
+
+  async function sent() {
+    try {
+      await report.mutateAsync({ loanId: loan.id, transfer: transfer.id })
+      toast('Thanks — your society will confirm it once the money arrives')
+      onDone()
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not tell your society'), 'error')
+    }
+  }
+
+  async function drop() {
+    try {
+      await cancel.mutateAsync({ loanId: loan.id, transfer: transfer.id })
+      onDone()
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not cancel it'), 'error')
+    }
+  }
+
+  return (
+    <div className="space-y-3.5">
+      <div className={`rounded-xl px-4 py-3 text-center ${expired ? 'bg-danger-50' : urgent ? 'bg-gold-50' : 'bg-green-50'}`}>
+        {expired ? (
+          <>
+            <div className="font-display text-lg font-semibold text-danger">Time's up</div>
+            <p className="mt-0.5 text-xs text-ink-soft">
+              The 30 minutes have passed. If you already sent the money, tap “I've sent it”.
+              Otherwise start again.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className={`font-mono text-3xl font-semibold tracking-wider tnum ${urgent ? 'text-gold-deep' : 'text-green'}`}>
+              {mmss(secs)}
+            </div>
+            <p className="mt-0.5 text-xs text-ink-soft">left to send the transfer</p>
+          </>
+        )}
+      </div>
+
+      <dl className="divide-y divide-line rounded-xl border border-line">
+        <CopyRow label="Amount to send" value={naira(transfer.amount)} copy={Number(transfer.amount).toFixed(2)} strong />
+        <CopyRow label="Bank" value={transfer.bank.bank_name} />
+        <CopyRow label="Account number" value={transfer.bank.account_no} copy={transfer.bank.account_no} mono />
+        <CopyRow label="Account name" value={transfer.bank.account_name} />
+        <CopyRow label="Narration / remark" value={transfer.psp_reference} copy={transfer.psp_reference} mono />
+      </dl>
+      <p className="text-xs text-muted-2">
+        Send exactly {naira(transfer.amount)} and put <span className="font-mono text-ink-soft">{transfer.psp_reference}</span> in
+        the narration, so your society can match it to your loan. Your bank may charge its usual transfer fee; there is no
+        Paystack fee.
+      </p>
+
+      <div className="flex flex-col gap-2 pt-1">
+        <Button icon="check_circle" loading={report.isPending} onClick={sent}>I've sent it</Button>
+        {expired ? (
+          <Button variant="secondary" icon="refresh" onClick={onRestart}>Start again</Button>
+        ) : (
+          <Button variant="ghost" loading={cancel.isPending} onClick={drop}>Cancel this transfer</Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CopyRow({ label, value, copy, mono, strong }: {
+  label: string; value: string; copy?: string; mono?: boolean; strong?: boolean
+}) {
+  const toast = useToast()
+  return (
+    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-2">{label}</dt>
+        <dd className={`truncate text-ink ${mono ? 'font-mono tracking-wide' : ''} ${strong ? 'text-base font-semibold' : 'text-sm font-medium'}`}>{value}</dd>
+      </div>
+      {copy && (
+        <button type="button" aria-label={`Copy ${label.toLowerCase()}`}
+          onClick={() => { navigator.clipboard?.writeText(copy).then(() => toast(`${label} copied`), () => {}) }}
+          className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-green hover:bg-green-50">
+          <Icon name="content_copy" size={15} /> Copy
+        </button>
+      )}
+    </div>
   )
 }
