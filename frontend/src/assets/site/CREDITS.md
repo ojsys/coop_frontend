@@ -6,14 +6,14 @@ on the matching screen and it overrides the file here. Nothing needs a deploy.
 
 | File | Slot | Source |
 |---|---|---|
-| `hero-members.webp` | Hero, beside the headline | [Pexels 5946219](https://www.pexels.com/photo/5946219/) |
-| `showcase-contributions.webp` | Deep-dive: contributions | [Pexels 6694965](https://www.pexels.com/photo/6694965/) |
-| `showcase-loans.webp` | Deep-dive: loans | [Pexels 34674788](https://www.pexels.com/photo/34674788/) |
-| `showcase-audit.webp` | Deep-dive: books & audit | [Pexels 7693692](https://www.pexels.com/photo/7693692/) |
-| `gallery-market.webp` | Photo strip | [Pexels 1151058](https://www.pexels.com/photo/1151058/) |
-| `gallery-officers.webp` | Photo strip | [Pexels 8815931](https://www.pexels.com/photo/8815931/) |
-| `gallery-meeting.webp` | Photo strip | [Pexels 18649994](https://www.pexels.com/photo/18649994/) |
-| `cta-community.webp` | Closing banner background | [Pexels 3228713](https://www.pexels.com/photo/3228713/) |
+| `hero-members.webp` | Hero, beside the headline | [Pexels 3894376](https://www.pexels.com/photo/3894376/) |
+| `showcase-contributions.webp` | Deep-dive: contributions | [Pexels 8248296](https://www.pexels.com/photo/8248296/) |
+| `showcase-loans.webp` | Deep-dive: loans | [Pexels 34705725](https://www.pexels.com/photo/34705725/) |
+| `showcase-audit.webp` | Deep-dive: books & audit | [Pexels 9301257](https://www.pexels.com/photo/9301257/) |
+| `gallery-market.webp` | Photo strip | [Pexels 28112436](https://www.pexels.com/photo/28112436/) |
+| `gallery-officers.webp` | Photo strip | [Pexels 30688593](https://www.pexels.com/photo/30688593/) |
+| `gallery-meeting.webp` | Photo strip | [Pexels 3869649](https://www.pexels.com/photo/3869649/) |
+| `cta-community.webp` | Closing banner background | [Pexels 20853361](https://www.pexels.com/photo/20853361/) |
 
 All eight are from Pexels under the [Pexels License](https://www.pexels.com/license/):
 free for commercial use, **no attribution required**. This file exists for

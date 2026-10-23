@@ -75,27 +75,27 @@ const FALLBACK = {
     'CooperativeOS records and reports on cooperative finances. It is not a bank, a lender, or a deposit-taking institution, and it does not hold member funds.',
 }
 
-const HERO_ALT = 'Four colleagues standing together in an office, smiling'
+const HERO_ALT = 'Four women gathered around a laptop in an office, smiling'
 
 /** Used in order, cycling if an admin adds more deep-dives than we ship. */
 const SHOWCASE_DEFAULTS = [
   { src: showcaseContributions,
-    alt: 'Hands counting banknotes beside a calculator and paperwork' },
+    alt: 'Women in bright wrappers and headwraps writing in their passbooks at a society meeting' },
   { src: showcaseLoans,
-    alt: 'A shopkeeper smiling behind a counter stacked with preserve jars' },
+    alt: 'A farmer laughing beside sacks of his harvest, baskets of tomatoes behind him' },
   { src: showcaseAudit,
-    alt: 'Three people reviewing printed financial figures together' },
+    alt: 'A man presenting financial charts on a screen to colleagues' },
 ]
 
 // No captions on purpose. These are stock photographs, and a caption naming a
 // cooperative would imply the people in them are members or customers.
 const GALLERY_DEFAULTS = [
   { image: galleryMarket, caption: '',
-    alt_text: 'A vendor arranging leafy greens on a market stall' },
+    alt_text: 'A trader in a headwrap at her stall, baskets of tomatoes behind her' },
   { image: galleryOfficers, caption: '',
-    alt_text: 'Three people gathered around a desk in an office' },
+    alt_text: 'Four colleagues talking together in an office' },
   { image: galleryMeeting, caption: '',
-    alt_text: 'People around a wooden table with notebooks, in discussion' },
+    alt_text: 'Women in a meeting around a table, one standing to speak' },
 ]
 
 const PRINCIPLE_POINTS = [
