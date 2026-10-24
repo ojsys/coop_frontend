@@ -289,28 +289,28 @@ problem report comes in. Play caps it at 50 characters. The notes are what
 members read under "What's new"; Play caps them at 500 characters per
 language, and they go in the box with the language tags as below.
 
-Current release (`1.1.18+20`):
+Current release (`1.1.19+21`):
 
 Release name:
 
 ```
-1.1.18 (20) — Switch & join cooperatives
+1.1.19 (21) — Passwords & bank transfer
 ```
 
-Release notes (378 / 500 characters):
+Release notes (425 / 500 characters):
 
 ```
 <en-US>
 What's new
-• Belong to more than one cooperative? Tap your cooperative's name on Home to switch between them in one tap
-• Join another cooperative with the account you already have: search for it or paste its invite link
-• Repay your loan in small amounts whenever you have money. Interest is fixed, so paying early never adds to it
-• Part-paid instalments show how much is left
+• Forgot your password? Tap "Forgot password?" on the sign-in screen and we'll email you a reset link
+• Change your password any time: Profile → Settings → Change password
+• Repay your loan by bank transfer straight into your cooperative's account, with no Paystack fee. The app shows the account, the amount and a reference to put in the narration
+• Repay in small amounts whenever you have money
 </en-US>
 ```
 
-If 1.1.17 (19) never went out, these notes still cover it: its small loan
-repayments are listed too.
+If 1.1.18 (20) never went out, add its line back: "Belong to more than
+one cooperative? Tap your cooperative's name on Home to switch between them".
 
 For later releases: name them `<versionName> (<versionCode>)`, and write
 the notes as what a member can now do or what got fixed, in their words, not

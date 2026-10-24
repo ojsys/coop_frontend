@@ -239,6 +239,43 @@ class Api {
     return user;
   }
 
+  /// Email a password-reset link. The answer is the same whether or not the
+  /// address is registered, so it cannot be used to find out who is a member.
+  Future<String> requestPasswordReset(String email) async {
+    http.Response res;
+    try {
+      res = await http.post(
+        Uri.parse('$baseUrl/auth/password-reset/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+    } on Exception {
+      throw ApiException(
+        'Could not reach the server. Check your connection and try again.',
+        0,
+      );
+    }
+    if (res.statusCode == 429) {
+      throw ApiException(
+        'Too many reset requests. Please wait a while and try again.',
+        429,
+      );
+    }
+    if (res.statusCode >= 400) {
+      throw ApiException(_detail(res), res.statusCode);
+    }
+    return _detail(res);
+  }
+
+  /// Change the signed-in user's password. The server issues a new token —
+  /// signing out every other device — and this one switches to it.
+  Future<void> changePassword(String current, String next) async {
+    final res = await _post('/me/password/',
+        {'current_password': current, 'new_password': next});
+    _token = res['token'] as String;
+    await _persist();
+  }
+
   Future<CurrentUser> me() async => CurrentUser.fromJson(await _get('/me/'));
 
   Future<MemberStatement> statement(int membershipId) async =>
@@ -485,6 +522,22 @@ class Api {
       'amount': amount,
       if (note.isNotEmpty) 'note': note,
     });
+  }
+
+  /// Begin a fee-free repayment by bank transfer: the society's account, the
+  /// amount, a narration reference and a 30-minute window to send it.
+  Future<StartedTransfer> startTransfer(int loanId, String amount) async =>
+      StartedTransfer.fromJson(await _post(
+          '/me/loans/$loanId/start-transfer/', {'amount': amount}));
+
+  /// "I've sent it" for a transfer begun with [startTransfer] — what puts it
+  /// in front of an officer. Accepted after the 30 minutes too.
+  Future<void> reportStartedTransfer(int loanId, int transferId) async {
+    await _post('/me/loans/$loanId/report-transfer/', {'transfer': transferId});
+  }
+
+  Future<void> cancelTransfer(int loanId, int transferId) async {
+    await _post('/me/loans/$loanId/cancel-transfer/', {'transfer': transferId});
   }
 
   Future<List<SavingsProduct>> savingsProducts() async {
@@ -979,8 +1032,26 @@ class Loan {
 
   /// Member-reported transfers still awaiting officer confirmation.
   List<RepaymentRow> get pendingClaims => repayments
-      .where((r) => r.status == 'pending' && r.channel == 'transfer')
+      .where((r) =>
+          r.status == 'pending' && r.channel == 'transfer' && r.expiresAt == null)
       .toList();
+
+  /// A bank transfer started in the app but not yet reported as sent.
+  StartedTransfer? get unsentTransfer {
+    if (coopBank == null) return null;
+    for (final r in repayments) {
+      if (r.status == 'pending' && r.channel == 'transfer' && r.expiresAt != null) {
+        return StartedTransfer(
+          id: r.id,
+          amount: r.amount,
+          reference: r.reference,
+          expiresAt: r.expiresAt!,
+          bank: coopBank!,
+        );
+      }
+    }
+    return null;
+  }
 
   factory Loan.fromJson(Map<String, dynamic> j) => Loan(
         id: j['id'] as int,
@@ -1048,21 +1119,57 @@ class Instalment {
 
 class RepaymentRow {
   RepaymentRow({
+    required this.id,
     required this.amount,
     required this.channel,
     required this.status,
     required this.note,
+    this.reference = '',
+    this.expiresAt,
   });
+  final int id;
   final double amount;
   final String channel;
   final String status;
   final String note;
+  /// For a bank transfer, the code the member puts in the narration.
+  final String reference;
+  /// Set only on a bank transfer started but not yet reported as sent.
+  final DateTime? expiresAt;
 
   factory RepaymentRow.fromJson(Map<String, dynamic> j) => RepaymentRow(
+        id: j['id'] as int? ?? 0,
         amount: double.tryParse('${j['amount']}') ?? 0,
         channel: j['channel'] as String? ?? '',
         status: j['status'] as String? ?? '',
         note: j['note'] as String? ?? '',
+        reference: j['psp_reference'] as String? ?? '',
+        expiresAt: DateTime.tryParse('${j['expires_at'] ?? ''}'),
+      );
+}
+
+/// A repayment by bank transfer the member has started: where to send it,
+/// how much, what to put in the narration, and until when.
+class StartedTransfer {
+  StartedTransfer({
+    required this.id,
+    required this.amount,
+    required this.reference,
+    required this.expiresAt,
+    required this.bank,
+  });
+  final int id;
+  final double amount;
+  final String reference;
+  final DateTime expiresAt;
+  final CoopBank bank;
+
+  factory StartedTransfer.fromJson(Map<String, dynamic> j) => StartedTransfer(
+        id: j['id'] as int,
+        amount: double.tryParse('${j['amount']}') ?? 0,
+        reference: j['psp_reference'] as String? ?? '',
+        expiresAt: DateTime.parse(j['expires_at'] as String),
+        bank: CoopBank.fromJson(j['bank'] as Map<String, dynamic>),
       );
 }
 

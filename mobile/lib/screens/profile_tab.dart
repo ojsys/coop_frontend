@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../api.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'password_sheets.dart';
 import 'legal_webview.dart';
 import '../widgets.dart';
 import 'member_scaffold.dart';
@@ -270,6 +271,13 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
       ),
     );
+  }
+
+  Future<void> _changePassword() async {
+    final changed = await showChangePassword(context, widget.api);
+    if (changed == true) {
+      _toast('Password changed. Other devices have been signed out.');
+    }
   }
 
   bool _exporting = false;
@@ -655,6 +663,15 @@ class _ProfileTabState extends State<ProfileTab> {
                 trailing: const Icon(Icons.chevron_right,
                     color: AppColors.muted2),
                 onTap: () => _openPolicy('terms', 'Terms of use'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.lock_outline,
+                    color: AppColors.muted),
+                title: const Text('Change password'),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.muted2),
+                onTap: _changePassword,
               ),
               const Divider(height: 1),
               // Your data, yours to take and to have deleted.

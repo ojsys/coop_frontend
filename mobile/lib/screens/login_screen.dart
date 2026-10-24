@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../theme.dart';
+import 'password_sheets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.api, required this.onSignedIn});
@@ -81,12 +82,24 @@ class _LoginScreenState extends State<LoginScreen> {
               _field(_email, 'Email', false),
               const SizedBox(height: 12),
               _field(_password, 'Password', true),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => showForgotPassword(context, widget.api,
+                          email: _email.text.trim()),
+                  style: TextButton.styleFrom(
+                      foregroundColor: AppColors.gold),
+                  child: const Text('Forgot password?'),
+                ),
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!,
                     style: const TextStyle(color: Color(0xFFFFC7BB))),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               FilledButton(
                 onPressed: _busy ? null : _submit,
                 style: FilledButton.styleFrom(

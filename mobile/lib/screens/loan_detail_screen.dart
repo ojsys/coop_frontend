@@ -4,6 +4,7 @@ import '../api.dart';
 import '../format.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'bank_transfer_screen.dart';
 import 'payment_webview.dart';
 
 /// A member's loan in detail: balances, the repayment schedule, how to repay
@@ -58,8 +59,21 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     );
     if (choice == null) return;
 
-    // Bank transfer: the member says they've paid → record a pending claim an
-    // officer verifies and confirms.
+    // Bank transfer, no fee: get the account and a reference, then 30 minutes
+    // to send it.
+    if (choice.method == 'start-transfer') {
+      try {
+        final started = await widget.api.startTransfer(loan.id, choice.amount);
+        if (!mounted) return;
+        await _openTransfer(loan, started);
+      } catch (e) {
+        if (mounted) _snack(errorMessage(e, 'Could not get the account details.'));
+      }
+      return;
+    }
+
+    // A transfer already sent outside the app: the member says they've paid →
+    // record a pending claim an officer verifies and confirms.
     if (choice.method == 'transfer') {
       try {
         await widget.api.reportTransfer(loan.id, choice.amount, choice.note);
@@ -122,6 +136,22 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     }
   }
 
+  Future<void> _openTransfer(Loan loan, StartedTransfer started) async {
+    final outcome = await Navigator.of(context).push<TransferOutcome>(
+      MaterialPageRoute(
+        builder: (_) => BankTransferScreen(
+            api: widget.api, loanId: loan.id, transfer: started),
+      ),
+    );
+    if (!mounted) return;
+    _reload();
+    if (outcome == TransferOutcome.sent) {
+      _snack('Thanks — your society will confirm it once the money arrives');
+    } else if (outcome == TransferOutcome.restart) {
+      await _repay(loan);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,6 +176,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 _summary(loan),
+                if (loan.status == 'disbursed' && loan.unsentTransfer != null)
+                  _unsentTransfer(loan, loan.unsentTransfer!),
                 if (loan.pendingClaims.isNotEmpty) _pendingClaims(loan),
                 if (loan.instalments.isNotEmpty)
                   _schedule(loan)
@@ -502,6 +534,45 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     );
   }
 
+  /// A transfer started but not reported as sent — tap to pick it up again.
+  Widget _unsentTransfer(Loan l, StartedTransfer t) {
+    final left = t.expiresAt.difference(DateTime.now());
+    return AppCard(
+      child: InkWell(
+        onTap: () => _openTransfer(l, t),
+        child: Row(
+          children: [
+            const Icon(Icons.timer_outlined, color: AppColors.goldDeep),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bank transfer of ${naira(t.amount)} started',
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    left.isNegative
+                        ? "Time's up. Tap if you already sent it."
+                        : 'About ${left.inMinutes + 1} min left. Tap to see the account details.',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.muted2),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _pendingClaims(Loan l) => AppCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,6 +611,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
 /// declare a bank transfer they've made.
 class _RepayChoice {
   const _RepayChoice.paystack(this.amount) : method = 'paystack', note = '';
+  const _RepayChoice.startTransfer(this.amount)
+      : method = 'start-transfer',
+        note = '';
   const _RepayChoice.transfer(this.amount, this.note) : method = 'transfer';
   final String method;
   final String amount;
@@ -569,6 +643,10 @@ class _RepaySheetState extends State<_RepaySheet> {
     _refreshQuote();
   }
   final TextEditingController _note = TextEditingController();
+  // Bank transfer first where the society has an account: it costs the
+  // member nothing, where Paystack adds its fee on top.
+  late String _method = widget.loan.coopBank != null ? 'transfer' : 'paystack';
+  bool _alreadySent = false;
 
   // Paystack's fee is the member's to pay, on top of the repayment, so the
   // society receives all of it. Quoted by the server (the same figure the
@@ -665,7 +743,37 @@ class _RepaySheetState extends State<_RepaySheet> {
               '${_next != null ? ' Next due ${shortDate(_next.dueDate)}.' : ''}',
               style: const TextStyle(color: AppColors.muted2, fontSize: 12),
             ),
-            if (_quote != null && _quote!.fee > 0) ...[
+            if (widget.loan.coopBank != null) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'How do you want to pay?',
+                style: TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _methodTile(
+                value: 'transfer',
+                icon: Icons.account_balance_outlined,
+                title: 'Bank transfer',
+                badge: 'No fee',
+                detail: "Send it from your bank app to your society's account "
+                    'within 30 minutes. An officer confirms it once it arrives.',
+              ),
+              const SizedBox(height: 8),
+              _methodTile(
+                value: 'paystack',
+                icon: Icons.credit_card,
+                title: 'Card or USSD with Paystack',
+                badge: _quote != null && _quote!.fee > 0
+                    ? '+ ${koboText(_quote!.fee)} fee'
+                    : null,
+                detail: "Confirmed straight away. Paystack's fee is added on top.",
+              ),
+            ],
+            if (_method == 'paystack' && _quote != null && _quote!.fee > 0) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -688,74 +796,161 @@ class _RepaySheetState extends State<_RepaySheet> {
               onPressed: () {
                 final v = _amount.text.trim();
                 if (v.isEmpty || (double.tryParse(v) ?? 0) <= 0) return;
-                Navigator.pop(context, _RepayChoice.paystack(v));
+                Navigator.pop(
+                  context,
+                  _method == 'transfer'
+                      ? _RepayChoice.startTransfer(v)
+                      : _RepayChoice.paystack(v),
+                );
               },
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),
-              icon: const Icon(Icons.lock_outline, size: 18),
-              label: Text(_quote == null
-                  ? 'Pay with Paystack'
-                  : 'Pay ${koboText(_quote!.total)} with Paystack'),
+              icon: Icon(
+                _method == 'transfer'
+                    ? Icons.account_balance_outlined
+                    : Icons.lock_outline,
+                size: 18,
+              ),
+              label: Text(_method == 'transfer'
+                  ? 'Show account details'
+                  : _quote == null
+                      ? 'Pay with Paystack'
+                      : 'Pay ${koboText(_quote!.total)} with Paystack'),
             ),
-            const SizedBox(height: 6),
-            const Center(
-              child: Text(
-                'Card, bank transfer & USSD · settles to your society',
-                style: TextStyle(color: AppColors.muted2, fontSize: 12),
-              ),
-            ),
-            if (widget.loan.coopBank != null) ...[
-              const SizedBox(height: 18),
-              Row(
-                children: const [
-                  Expanded(child: Divider(color: AppColors.line)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      'or pay directly to the account',
-                      style: TextStyle(color: AppColors.muted2, fontSize: 12),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: AppColors.line)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _bankBlock(widget.loan.coopBank!),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _note,
-                decoration: const InputDecoration(
-                  labelText: 'Transfer reference / note (optional)',
-                  hintText: 'e.g. GTBank, 29 Jul',
-                  border: OutlineInputBorder(),
+            if (_method == 'paystack') ...[
+              const SizedBox(height: 6),
+              const Center(
+                child: Text(
+                  'Card, bank transfer & USSD · settles to your society',
+                  style: TextStyle(color: AppColors.muted2, fontSize: 12),
                 ),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () {
-                  final v = _amount.text.trim();
-                  if (v.isEmpty || (double.tryParse(v) ?? 0) <= 0) return;
-                  Navigator.pop(
-                    context,
-                    _RepayChoice.transfer(v, _note.text.trim()),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.green,
-                  side: const BorderSide(color: AppColors.green),
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                icon: const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text("I've made the transfer"),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Tap this once you have transferred the amount above from your '
-                'bank app — an officer verifies it and confirms it on your loan.',
-                style: TextStyle(color: AppColors.muted2, fontSize: 12),
               ),
             ],
+            // A transfer made outside the app, without the 30-minute flow.
+            if (widget.loan.coopBank != null) ...[
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton(
+                  onPressed: () => setState(() => _alreadySent = !_alreadySent),
+                  child: Text(_alreadySent
+                      ? 'Hide'
+                      : 'Already sent a transfer? Tell your society'),
+                ),
+              ),
+              if (_alreadySent) ...[
+                _bankBlock(widget.loan.coopBank!),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _note,
+                  decoration: const InputDecoration(
+                    labelText: 'Transfer reference / note (optional)',
+                    hintText: 'e.g. GTBank, 29 Jul',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    final v = _amount.text.trim();
+                    if (v.isEmpty || (double.tryParse(v) ?? 0) <= 0) return;
+                    Navigator.pop(
+                      context,
+                      _RepayChoice.transfer(v, _note.text.trim()),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.green,
+                    side: const BorderSide(color: AppColors.green),
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  label: const Text("I've made the transfer"),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Enter the amount you sent above, then tap this. An officer '
+                  'verifies it and confirms it on your loan.',
+                  style: TextStyle(color: AppColors.muted2, fontSize: 12),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _methodTile({
+    required String value,
+    required IconData icon,
+    required String title,
+    String? badge,
+    required String detail,
+  }) {
+    final selected = _method == value;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _method = value),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.green.withValues(alpha: 0.06) : null,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: selected ? AppColors.green : AppColors.line,
+              width: selected ? 1.5 : 1),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 20,
+              color: selected ? AppColors.green : AppColors.muted2,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Icon(icon, size: 16, color: AppColors.muted2),
+                      Text(title,
+                          style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700)),
+                      if (badge != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: badge == 'No fee'
+                                ? AppColors.green.withValues(alpha: 0.12)
+                                : AppColors.sand,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(badge,
+                              style: TextStyle(
+                                  color: badge == 'No fee'
+                                      ? AppColors.green
+                                      : AppColors.muted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(detail,
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 12, height: 1.35)),
+                ],
+              ),
+            ),
           ],
         ),
       ),
