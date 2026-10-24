@@ -35,7 +35,7 @@ export function DividendsPage() {
   const { action, remove } = useDividendsCrud()
   const { activeMembership } = useAuth()
   const toast = useToast()
-  // Office-holders (a Chairperson, say) read; privileged officers act.
+  // Office-holders (an Auditor, say) read; privileged officers act.
   const canManage = activeMembership?.is_privileged ?? false
   // Past distributions stay visible on every plan; declaring new ones follows it.
   const canDeclare = useHasFeature('dividends')

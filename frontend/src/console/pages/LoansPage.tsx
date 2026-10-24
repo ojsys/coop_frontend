@@ -27,9 +27,9 @@ const statusTone = (s: string) =>
 export function LoansPage() {
   const { data: loans = [], isLoading, isError } = useLoans()
   const { action } = useLoansCrud()
-  // A Chairperson reads the loan book and the queue — they sit on the console to
-  // approve things — but holds no privileged permission, so every write here
-  // would 403. Per the rule stated in SettingsPage, don't render the control.
+  // A read-only officer (a role a society gives only view or approve
+  // permissions, such as an Auditor) reads the loan book and the queue but
+  // holds no privileged permission, so every write here would 403. Per the rule stated in SettingsPage, don't render the control.
   const { activeMembership } = useAuth()
   const canManage = activeMembership?.is_privileged ?? false
   const toast = useToast()
@@ -347,8 +347,8 @@ function AwaitingPanel({
           </p>
         ) : (
           <p className="mt-1.5 text-[13px] text-muted">
-            Releasing a payment needs a Treasurer or Secretary — you can review
-            the queue here but not pay from it.
+            Releasing a payment needs an exco — the Chairperson, Secretary or
+            Treasurer. You can review the queue here but not pay from it.
           </p>
         )}
       </Card>
@@ -533,7 +533,7 @@ function ClaimsPanel() {
   const confirm = useConfirmRepayment()
   const reject = useRejectRepayment()
   // Confirming posts a repayment to the ledger, so it is privileged. A
-  // Chairperson sees what is waiting without the buttons that would 403.
+  // read-only officer sees what is waiting without the buttons that would 403.
   const { activeMembership } = useAuth()
   const canManage = activeMembership?.is_privileged ?? false
   const toast = useToast()
@@ -564,7 +564,7 @@ function ClaimsPanel() {
             {canManage ? (
               <span className="text-xs text-muted-2">· confirm only once the money shows on the society&apos;s bank statement</span>
             ) : (
-              <span className="text-xs text-muted-2">· a Treasurer or Secretary verifies these</span>
+              <span className="text-xs text-muted-2">· an exco (Chairperson, Secretary or Treasurer) verifies these</span>
             )}
           </div>
           <div className="divide-y divide-line">

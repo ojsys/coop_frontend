@@ -42,7 +42,8 @@ export function WalletPage() {
         <Card className="mb-4">
           <p className="text-[13px] text-muted">
             You can see the balance and its history here. Funding the wallet and
-            withdrawing from it need a Treasurer or Secretary.
+            withdrawing from it need an exco — the Chairperson, Secretary or
+            Treasurer.
           </p>
         </Card>
       )}

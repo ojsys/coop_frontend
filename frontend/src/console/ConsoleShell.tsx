@@ -80,7 +80,7 @@ function PlanCard() {
 export function ConsoleShell({ children }: { children: ReactNode }) {
   const { activeMembership } = useAuth()
   // Listing join requests is privileged-only, and the console is open to any
-  // office-holder — so asking for the count as a Chairperson would be a 403 on
+  // office-holder — so asking for the count as a read-only officer would be a 403 on
   // every page of the console rather than a missing badge.
   const canSeeRequests = activeMembership?.is_privileged ?? false
   const { data: pending = 0 } = usePendingJoinRequestCount(canSeeRequests)

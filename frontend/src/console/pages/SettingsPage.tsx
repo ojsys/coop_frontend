@@ -50,11 +50,25 @@ const PERMISSIONS: { slug: string; label: string; privileged?: boolean }[] = [
   { slug: 'ledger.reconcile', label: 'Reconcile payments', privileged: true },
 ]
 
+// What a role's holders get, by the same rule as Role.is_privileged and
+// Role.is_officer on the server.
+const MEMBER_PERMISSIONS = new Set(['self.view', 'governance.vote'])
+
+function consoleAccess(perms: string[]): string {
+  if (perms.some((s) => PERMISSIONS.find((p) => p.slug === s)?.privileged)) {
+    return 'Holders get full access to this console.'
+  }
+  if (perms.some((s) => !MEMBER_PERMISSIONS.has(s))) {
+    return 'Holders can open this console but only look — they cannot change anything.'
+  }
+  return 'Holders use the member app only; they cannot open this console.'
+}
+
 export function SettingsPage() {
   const canBrand = useHasFeature('custom_branding')
   const { activeMembership, activeCooperativeId } = useAuth()
-  // The console is open to any office-holder (a Chairperson sits on it for
-  // approvals), but roles and the society profile are writable only by a
+  // The console is open to any office-holder (an Auditor sits on it to look),
+  // but roles and the society profile are writable only by a
   // privileged member. Showing those controls to everyone else just hands
   // them a 403.
   const canManage = activeMembership?.is_privileged ?? false
@@ -510,6 +524,10 @@ function RoleForm({ role, onClose }: { role: Role | 'new'; onClose: () => void }
         </Field>
         <div>
           <span className="mb-1.5 block text-[13px] font-medium text-ink-soft">Permissions</span>
+          <p className="mb-2 text-xs text-muted-2">
+            Any <Badge tone="gold">2FA</Badge> permission gives full console access, as the Chairperson,
+            Secretary and Treasurer have — tick one for every exco role you add.
+          </p>
           <div className="space-y-1.5">
             {PERMISSIONS.map((p) => (
               <label key={p.slug} className="flex items-center gap-2.5 rounded-md border border-line px-3 py-2 text-[13px]">
@@ -519,6 +537,10 @@ function RoleForm({ role, onClose }: { role: Role | 'new'; onClose: () => void }
               </label>
             ))}
           </div>
+          <p className="mt-2 text-xs text-muted">
+            <Icon name="info" size={14} className="mr-1 align-[-2px]" />
+            {consoleAccess(perms)}
+          </p>
         </div>
         {error && (
           <p className="rounded-lg border border-danger/30 bg-danger/5 px-3.5 py-2.5 text-[13px] text-danger">

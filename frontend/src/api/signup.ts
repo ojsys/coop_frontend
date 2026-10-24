@@ -178,7 +178,7 @@ export function useJoinRequestDecision() {
  *
  * `enabled` exists because listing join requests is privileged-only
  * (IsPrivilegedMember). The console is open to any office-holder, so asking
- * for this as a Chairperson is a guaranteed 403 on every page.
+ * for this as a read-only officer is a guaranteed 403 on every page.
  *
  * The key is nested under 'join-requests' on purpose, so deciding a request
  * invalidates this badge along with the queue.
