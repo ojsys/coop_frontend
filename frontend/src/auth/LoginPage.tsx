@@ -185,7 +185,7 @@ export function LoginPage() {
           <p className="mt-6 border-t border-line pt-5 text-sm text-muted">
             New here?{' '}
             <Link to="/signup" className="font-medium text-green hover:underline">
-              Apply to join
+              Get started free
             </Link>
           </p>
         </div>

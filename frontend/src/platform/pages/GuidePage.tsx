@@ -46,31 +46,42 @@ const SECTIONS: GuideSection[] = [
   {
     id: 'onboarding',
     title: 'Bringing a society on board',
-    icon: 'conveyor_belt',
-    keywords: 'onboarding pipeline discovery migration parallel run go-live prospective application signup',
+    icon: 'verified_user',
+    keywords: 'onboarding signup trial verification kyc exco certificate registration live active pipeline migration',
     body: (
       <>
         <p>
-          Applications arrive on their own. When a society applies through the
-          public site, it is created with status <strong>Prospective</strong>{' '}
-          and added to the pipeline at <strong>Discovery</strong>. It cannot be
-          used until it goes live. You can also create one by hand from
-          Cooperatives → Provision.
+          Societies sign themselves up. The public signup creates the society
+          as <strong>Active</strong>, starts its free trial and signs the
+          founder into the console as <strong>Chairperson</strong> — nobody on
+          the team needs to do anything for it to start keeping its books.
+        </p>
+        <p>
+          What still needs a person is <strong>verification</strong> (its
+          KYC). Until it is approved the platform moves no money for the
+          society: no online contributions or loan repayments, no settlement
+          account, no wallet top-ups and no electronic loan payouts. Cash and
+          bank-transfer records work as normal.
         </p>
         <Steps
           items={[
-            <><strong>Discovery</strong> — size, how they keep records today, what needs migrating.</>,
-            <><strong>Data migration</strong> — bring across the member register and contribution history.</>,
-            <><strong>Parallel run</strong> — run alongside their existing books until the figures agree. Do not skip this; it is what earns their trust.</>,
-            <><strong>Go-live</strong> — advancing to this stage flips the society to <strong>Active</strong> and is written to the audit log.</>,
-            <><strong>Completed</strong> — hand over to support.</>,
+            <>The society fills its exco — Chairperson, Secretary and Treasurer — and each uploads a means of ID.</>,
+            <>An officer uploads the certificate of registration and sends it for review. It arrives in <strong>Verification</strong>, and the team is emailed.</>,
+            <>Check the IDs match the names and the certificate matches the society. <strong>Approve</strong>, or <strong>Request changes</strong> with a note the officers will read.</>,
           ]}
         />
         <Caution>
-          Only <strong>Active</strong> societies appear in the public society
-          search, can admit members, or receive scheduled reminders. If a pilot
-          says “our members can’t find us”, check the status first.
+          Only <strong>verified</strong> societies appear in the public society
+          search. An unverified one can still bring members in through its own
+          invite link. If a pilot says “our members can’t find us”, check its
+          verification first.
         </Caution>
+        <p>
+          <strong>Assisted onboarding</strong> is for societies that want help
+          migrating their records. It tracks Discovery → Data migration →
+          Parallel run → Go-live, but it no longer switches anything on: the
+          society is already live.
+        </p>
       </>
     ),
   },

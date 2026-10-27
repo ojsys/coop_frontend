@@ -50,7 +50,7 @@ export function ProvisionPage() {
         tier: form.tier,
         member_cap: Number(form.member_cap),
       })
-      toast('Cooperative provisioned — onboarding started at Discovery')
+      toast('Cooperative provisioned — live on its free trial, assisted onboarding started')
       navigate(`/platform/cooperatives/${coop.id}`)
     } catch (err) {
       toast(apiErrorMessage(err, 'Could not provision cooperative'), 'error')

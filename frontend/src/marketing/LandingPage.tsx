@@ -68,8 +68,8 @@ const FALLBACK = {
     'Pricing depends on your cooperative’s size and how much history needs migrating.',
   ctaTitle: 'Ready to bring your cooperative on board?',
   ctaBody:
-    'Tell us about your cooperative and we will talk through what needs migrating.',
-  ctaButton: 'Apply as a cooperative',
+    'Set your cooperative up in two minutes and use it free for your first month. Want help moving your records across? We’ll do that with you.',
+  ctaButton: 'Start your free trial',
   footerTagline: 'by Startup Ripple',
   footerDisclaimer:
     'CooperativeOS records and reports on cooperative finances. It is not a bank, a lender, or a deposit-taking institution, and it does not hold member funds.',
@@ -381,7 +381,7 @@ export function LandingPage() {
             </div>
 
             <p className="mt-5 text-[13px] text-muted-2">
-              No card required to apply · Your books stay yours
+              Free for your first month · No card required · Your books stay yours
             </p>
           </div>
 

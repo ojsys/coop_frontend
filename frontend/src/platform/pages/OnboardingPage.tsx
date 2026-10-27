@@ -43,7 +43,7 @@ export function OnboardingPage() {
       await action.mutateAsync({ id: item.id, action: 'advance' })
       toast(
         next >= STAGES.length - 1
-          ? `${item.display_name} is live — tenant activated`
+          ? `${item.display_name} marked as gone live`
           : `${item.display_name} advanced`,
       )
     } catch (err) {
@@ -54,8 +54,8 @@ export function OnboardingPage() {
   return (
     <div>
       <PageHeader
-        title="Onboarding"
-        subtitle="Provision a cooperative and walk it from Discovery to Go-live — each step is saved"
+        title="Assisted onboarding"
+        subtitle="Hands-on migration help for the societies that want it. Tracking only — every society is live, on its free trial, from the moment it is created"
         actions={
           <Button size="sm" icon="add_business" onClick={() => setOpen(true)}>
             Start onboarding
@@ -115,7 +115,7 @@ export function OnboardingPage() {
                         onClick={() => advance(item)}
                         className="mt-2 flex items-center gap-1 text-xs font-semibold text-green hover:underline"
                       >
-                        {stage.key === 'go_live' ? 'Complete & activate' : 'Advance'} <Icon name="arrow_forward" size={14} />
+                        {stage.key === 'go_live' ? 'Mark complete' : 'Advance'} <Icon name="arrow_forward" size={14} />
                       </button>
                     </div>
                   ))}
@@ -174,7 +174,7 @@ function StartOnboardingModal({ open, onClose }: { open: boolean; onClose: () =>
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Start onboarding" subtitle="Provisions a prospective tenant and adds it to the pipeline">
+    <Modal open={open} onClose={onClose} title="Start onboarding" subtitle="Provisions a live tenant on its free trial and tracks the migration help">
       <form onSubmit={submit} className="space-y-3.5">
         <Field label="Registered name">
           <input required value={form.name} onChange={(e) => set('name', e.target.value)} className="input" placeholder="Kano Millers Union" />

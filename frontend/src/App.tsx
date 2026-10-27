@@ -9,6 +9,7 @@ import { LegalPage } from './marketing/LegalPage'
 import { SignupPage } from './marketing/SignupPage'
 import { AccountDeletePage, AccountDeleteConfirmPage } from './marketing/AccountDeletePage'
 import { ResetPasswordPage } from './auth/ResetPasswordPage'
+import { VerifyEmailPage } from './auth/VerifyEmailPage'
 import { InvoicePayPage } from './billing/InvoicePayPage'
 import { FullscreenSpinner } from './ui/Spinner'
 import { ConsoleRoutes } from './console/ConsoleRoutes'
@@ -52,6 +53,7 @@ export function App() {
       <Route path="/account/delete" element={<AccountDeletePage />} />
       <Route path="/account/delete/confirm" element={<AccountDeleteConfirmPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       {/* Reached from the subscription invoice email. Public by necessity: the
           officer who pays may have no account at all, and the pay token in the
           URL is the authorisation. */}

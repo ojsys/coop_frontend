@@ -20,6 +20,7 @@ import { ApprovalsPage } from './pages/ApprovalsPage'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { GuidePage } from './pages/GuidePage'
+import { VerificationPage } from './pages/VerificationPage'
 
 export function ConsoleRoutes() {
   return (
@@ -44,6 +45,7 @@ export function ConsoleRoutes() {
         <Route path="dividends" element={<DividendsPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="verification" element={<VerificationPage />} />
         <Route path="guide" element={<GuidePage />} />
       </Routes>
     </ConsoleShell>

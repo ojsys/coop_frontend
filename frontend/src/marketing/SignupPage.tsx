@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PlatformMark } from '@/ui/PlatformMark'
 import { Icon } from '@/ui/Icon'
 import { Field } from '@/ui/Field'
@@ -19,23 +19,26 @@ import {
 import brandPhoto from '@/assets/site/gallery-meeting.webp'
 
 /**
- * Applying to the platform, and asking to join a cooperative already on it.
+ * Signing a cooperative up, and asking to join a cooperative already on it.
  *
  * Laid out as the two-panel shell the sign-in page uses, so the three public
- * auth surfaces read as one product. The long application is split across two
- * steps: ten fields in a single column is what made it feel like paperwork,
- * and the split falls on a natural seam — the cooperative, then the person.
+ * auth surfaces read as one product. The signup is split across two steps:
+ * ten fields in a single column is what made it feel like paperwork, and the
+ * split falls on a natural seam — the cooperative, then the person.
+ *
+ * A society is live the moment it signs up, on its free trial. The founder
+ * chooses a password here and lands in the console signed in; verifying the
+ * society (its KYC) is a later step the dashboard walks them through.
  */
 
 type Mode = 'choose' | 'society' | 'member'
 
 const APPLICATION_STEPS = ['Your cooperative', 'About you']
 
-/** Drawn from the onboarding copy rather than invented for this panel. */
 const REASSURANCES = [
-  'We migrate your existing register and contribution history',
-  'We run alongside your books until the figures agree',
-  'Nothing is charged until you decide to go ahead',
+  'Live in minutes — no setup call, no waiting for approval',
+  'Free for your first month, with nothing to pay up front',
+  'Money settles into your cooperative’s own bank account',
 ]
 
 export function SignupPage() {
@@ -138,8 +141,8 @@ function Chooser({ onPick }: { onPick: (m: Mode) => void }) {
       mode: 'society' as const,
       icon: 'storefront',
       title: 'Bring your cooperative on board',
-      body: 'You run a cooperative and want it on CooperativeOS. We’ll migrate your register and contribution history, then go live when you’re satisfied.',
-      cta: 'Apply as a cooperative',
+      body: 'You run a cooperative and want it on CooperativeOS. Set it up in two minutes and use it free for your first month.',
+      cta: 'Start your free trial',
     },
     {
       mode: 'member' as const,
@@ -300,16 +303,17 @@ function Done({
   )
 }
 
-// ── A cooperative applying ──────────────────────────────────────────────────
+// ── A cooperative signing up ────────────────────────────────────────────────
 function CooperativeApplication({ onBack }: { onBack: () => void }) {
   const apply = useApplyForCooperative()
+  const { login, setActiveCooperativeId } = useAuth()
+  const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
   const [form, setForm] = useState({
-    society_name: '', applicant_name: '', applicant_email: '',
+    society_name: '', applicant_name: '', applicant_email: '', password: '',
     applicant_phone: '', country: '', state: '', lga: '', coop_type: '',
-    estimated_members: '', message: '',
+    estimated_members: '',
   })
   const set = (k: keyof typeof form, v: string) =>
     setForm((f) => ({ ...f, [k]: v }))
@@ -318,36 +322,32 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
     e.preventDefault()
     // Pressing Enter in a field can submit the form implicitly, even though
     // Continue is a plain button. On an earlier step that would fire off a
-    // half-filled application, so advance instead of sending.
+    // half-filled signup, so advance instead of sending.
     if (step < APPLICATION_STEPS.length - 1) {
       if (form.society_name.trim()) setStep(step + 1)
       return
     }
     setError(null)
+    let created: { cooperative_id: number }
     try {
-      await apply.mutateAsync({
+      created = await apply.mutateAsync({
         ...form,
         estimated_members: Number(form.estimated_members) || 0,
       })
-      setDone(true)
     } catch (err) {
-      setError(apiErrorMessage(err, 'Could not send your application.'))
+      setError(apiErrorMessage(err, 'Could not set up your cooperative.'))
+      return
     }
-  }
-
-  if (done) {
-    return (
-      <Done
-        title="Application received"
-        body="We’ve emailed you a confirmation, and nothing is charged until you decide to go ahead."
-        next={[
-          'We talk through your cooperative’s size and what needs migrating.',
-          'We bring across your member register and contribution history.',
-          'We run alongside your existing books until the figures agree.',
-          'You go live, and your members get access to their own statements.',
-        ]}
-      />
-    )
+    // Signed in through the ordinary login, with the password just chosen —
+    // signup itself hands out no token.
+    try {
+      await login(form.applicant_email, form.password)
+      setActiveCooperativeId(created.cooperative_id)
+      navigate('/console', { replace: true })
+    } catch {
+      // The society exists; only the automatic sign-in failed.
+      navigate('/login', { replace: true })
+    }
   }
 
   return (
@@ -355,7 +355,7 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
       <FormHeader
         onBack={onBack}
         title="Bring your cooperative on board"
-        intro="Two short steps. We’ll take it from there."
+        intro="Two short steps, and you’re in. Free for your first month."
       />
 
       <Stepper steps={APPLICATION_STEPS} current={step} />
@@ -434,13 +434,18 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
               </Field>
             </div>
 
-            <Field label="Anything else we should know?" hint="Optional.">
-              <textarea
-                rows={3}
-                value={form.message}
+            <Field
+              label="Choose a password"
+              hint="At least 8 characters. Already on CooperativeOS? Use your existing password."
+            >
+              <input
+                required
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                value={form.password}
                 className="input"
-                onChange={(e) => set('message', e.target.value)}
-                placeholder="How you keep records today, when you'd like to go live…"
+                onChange={(e) => set('password', e.target.value)}
               />
             </Field>
 
@@ -470,7 +475,7 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
             </Button>
           ) : (
             <Button type="submit" loading={apply.isPending}>
-              Send application
+              Create my cooperative
             </Button>
           )}
         </div>

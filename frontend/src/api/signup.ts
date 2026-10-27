@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 
 /**
- * Signup: a society applying to the platform, a person applying to a society,
+ * Signup: a society joining the platform, a person applying to a society,
  * and the officer-side queue that decides the latter.
  *
  * The first three calls are public — they work with no token, because the
@@ -23,6 +23,7 @@ export interface CooperativeApplication {
   society_name: string
   applicant_name: string
   applicant_email: string
+  password: string
   applicant_phone?: string
   country?: string
   state?: string
@@ -84,10 +85,11 @@ export function useJoinLink(code: string | undefined) {
 export function useApplyForCooperative() {
   return useMutation({
     mutationFn: async (input: CooperativeApplication) => {
-      const { data } = await api.post<{ detail: string; society: string }>(
-        '/public/apply/',
-        input,
-      )
+      const { data } = await api.post<{
+        detail: string
+        society: string
+        cooperative_id: number
+      }>('/public/apply/', input)
       return data
     },
   })

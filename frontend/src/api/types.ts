@@ -23,7 +23,16 @@ export interface MembershipSummary {
   share_capital: string
   /** The society's plan. Absent from servers older than plan features. */
   plan?: MembershipPlan
+  /** The society's KYC (see tenants/verification.py). Online payments wait on
+   *  'verified'. Absent from servers older than self-serve signup. */
+  cooperative_verification?: CooperativeVerificationStatus
 }
+
+export type CooperativeVerificationStatus =
+  | 'not_started'
+  | 'submitted'
+  | 'verified'
+  | 'changes_requested'
 
 /** Keys of the features plans differ by (see core/entitlements.py). */
 export type PlanFeature =
@@ -59,6 +68,8 @@ export interface CurrentUser {
   id: number
   full_name: string
   email: string
+  /** Confirmed by following an emailed link. Absent on older servers. */
+  email_verified?: boolean
   phone: string
   national_id: string
   is_platform_admin: boolean

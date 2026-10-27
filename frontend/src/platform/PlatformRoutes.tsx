@@ -12,6 +12,7 @@ import { HealthPage } from './pages/HealthPage'
 import { PlatformSettingsPage } from './pages/PlatformSettingsPage'
 import { GuidePage } from './pages/GuidePage'
 import { UsersPage } from './pages/UsersPage'
+import { VerificationQueuePage } from './pages/VerificationQueuePage'
 
 export function PlatformRoutes() {
   return (
@@ -22,6 +23,7 @@ export function PlatformRoutes() {
         <Route path="cooperatives/:id" element={<CooperativeDetailPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="provision" element={<ProvisionPage />} />
+        <Route path="verification" element={<VerificationQueuePage />} />
         <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="white-label" element={<WhiteLabelPage />} />

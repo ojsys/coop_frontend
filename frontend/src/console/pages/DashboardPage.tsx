@@ -1,5 +1,6 @@
 import { useDashboard, useLoans, useWallet } from '@/api/hooks'
 import { WalletShortBanner } from '@/console/FundWalletPrompt'
+import { VerificationBanner } from '@/console/VerificationBanner'
 import { useAuth } from '@/auth/AuthContext'
 import { PageHeader } from '@/ui/PageHeader'
 import { StatTile } from '@/ui/StatTile'
@@ -42,6 +43,8 @@ export function DashboardPage() {
           </>
         }
       />
+
+      <VerificationBanner />
 
       {wallet.data && (
         <WalletShortBanner

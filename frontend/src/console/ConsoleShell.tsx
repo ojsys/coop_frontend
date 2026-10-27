@@ -28,6 +28,7 @@ const NAV: NavItem[] = [
   { to: '/console/dividends', label: 'Dividends', icon: 'paid' },
   { to: '/console/announcements', label: 'Announcements', icon: 'campaign' },
   { to: '/console/settings', label: 'Settings', icon: 'settings' },
+  { to: '/console/verification', label: 'Verification', icon: 'verified_user' },
   { to: '/console/guide', label: 'Guide', icon: 'menu_book' },
 ]
 
@@ -48,6 +49,11 @@ function PlanCard() {
       <div className="text-[11px] font-semibold text-green-200">
         {plan?.name ? `PLAN · ${plan.name.toUpperCase()}` : 'PLAN'}
       </div>
+      {plan?.status === 'trial' && plan.renews_on && (
+        <div className="mt-0.5 text-[11px] text-green-100">
+          Free trial until {shortDate(plan.renews_on)}
+        </div>
+      )}
       {plan?.grace_until && (
         <div className="mt-0.5 text-[11px] text-green-100">
           Every feature included until {shortDate(plan.grace_until)}
