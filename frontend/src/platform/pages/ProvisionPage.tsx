@@ -28,7 +28,6 @@ export function ProvisionPage() {
     lga: '',
     coop_type: 'Multipurpose',
     tier: 'small',
-    member_cap: '500',
     admin_name: '',
     admin_email: '',
   })
@@ -48,7 +47,6 @@ export function ProvisionPage() {
         state: form.state,
         lga: form.lga,
         tier: form.tier,
-        member_cap: Number(form.member_cap),
       })
       toast('Cooperative provisioned — live on its free trial, assisted onboarding started')
       navigate(`/platform/cooperatives/${coop.id}`)
@@ -124,9 +122,9 @@ export function ProvisionPage() {
                 ]}
               />
             </Field>
-            <Field label="Member cap">
-              <input value={form.member_cap} onChange={(e) => set('member_cap', e.target.value)} className="input" inputMode="numeric" />
-            </Field>
+            <p className="text-[13px] text-muted">
+              Starts on the Starter plan's free trial. The member cap follows the plan.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Primary admin (Chairperson)">
                 <input value={form.admin_name} onChange={(e) => set('admin_name', e.target.value)} className="input" placeholder="Musa Danladi" />

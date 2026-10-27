@@ -9,7 +9,7 @@ import { Avatar } from '@/ui/Avatar'
 import { StatusPill, Badge } from '@/ui/Badge'
 import { Table, type Column } from '@/ui/Table'
 import { QueryState } from '@/ui/QueryState'
-import { num } from '@/lib/format'
+import { memberCap } from '@/lib/format'
 import type { Cooperative } from '@/api/types'
 
 const TIER_LABEL: Record<string, string> = { small: 'Small', medium: 'Medium', large: 'Large' }
@@ -42,8 +42,8 @@ export function CooperativesPage() {
       ),
     },
     { key: 'state', header: 'State', render: (c) => c.state || '—' },
-    { key: 'cap', header: 'Member cap', align: 'right', render: (c) => <span className="font-mono tnum">{num(c.member_cap)}</span> },
-    { key: 'plan', header: 'Plan', render: (c) => <Badge tone="neutral">{TIER_LABEL[c.tier] ?? c.tier}</Badge> },
+    { key: 'cap', header: 'Member cap', align: 'right', render: (c) => <span className="font-mono tnum">{memberCap(c.member_cap)}</span> },
+    { key: 'plan', header: 'Plan', render: (c) => <Badge tone="neutral">{c.plan_name ?? TIER_LABEL[c.tier] ?? c.tier}</Badge> },
     { key: 'status', header: 'Status', render: (c) => <StatusPill status={c.status} /> },
     { key: 'chev', header: '', align: 'right', render: () => <Icon name="chevron_right" size={20} className="text-faint" /> },
   ]

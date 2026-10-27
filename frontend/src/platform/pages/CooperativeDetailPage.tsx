@@ -33,7 +33,7 @@ import { Field, Select } from '@/ui/Field'
 import { LocationSelect, CoopTypeSelect } from '@/ui/StateLGASelect'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
-import { naira, num, longDate, shortDate, dateTime } from '@/lib/format'
+import { naira, num, longDate, shortDate, dateTime, memberCap } from '@/lib/format'
 import { Table, Pagination, type Column } from '@/ui/Table'
 import { memberMatches } from '@/lib/members'
 import type {
@@ -82,8 +82,8 @@ export function CooperativeDetailPage() {
             </div>
 
             <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <StatTile label="Plan" value={coop.tier} icon="workspace_premium" iconTone="gold" />
-              <StatTile label="Member cap" value={num(coop.member_cap)} icon="groups" iconTone="green" />
+              <StatTile label="Plan" value={coop.plan_name ?? '—'} icon="workspace_premium" iconTone="gold" />
+              <StatTile label="Member cap" value={memberCap(coop.member_cap)} icon="groups" iconTone="green" />
               <StatTile label="Currency" value={coop.base_currency} icon="payments" iconTone="neutral" />
               <StatTile label="Type" value={coop.coop_type || '—'} icon="category" iconTone="neutral" />
             </div>
@@ -227,7 +227,7 @@ function ConfigTab({ coop }: { coop: Cooperative }) {
           <Detail label="Name" value={coop.name} />
           <Detail label="Type" value={coop.coop_type || '—'} />
           <Detail label="State / LGA" value={`${coop.state || '—'}${coop.lga ? ` · ${coop.lga}` : ''}`} />
-          <Detail label="Member cap" value={num(coop.member_cap)} />
+          <Detail label="Member cap" value={`${memberCap(coop.member_cap)} · set by the plan`} />
           <Detail label="Base currency" value={coop.base_currency} />
           <Detail label="Brand colour" value={coop.brand_color} swatch={coop.brand_color} />
         </div>
@@ -336,7 +336,6 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
     base_currency: coop.base_currency,
     tier: coop.tier,
     brand_color: coop.brand_color,
-    member_cap: String(coop.member_cap),
   })
 
   function set(k: keyof typeof form, v: string) {
@@ -356,7 +355,6 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
         base_currency: form.base_currency,
         tier: form.tier,
         brand_color: form.brand_color,
-        member_cap: Number(form.member_cap),
       })
       toast('Society profile updated')
       onClose()
@@ -393,9 +391,8 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
           onState={(v) => set('state', v)}
           onLga={(v) => set('lga', v)}
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Currency"><input value={form.base_currency} maxLength={3} onChange={(e) => set('base_currency', e.target.value)} className="input" /></Field>
-          <Field label="Member cap"><input inputMode="numeric" value={form.member_cap} onChange={(e) => set('member_cap', e.target.value)} className="input" /></Field>
           <Field label="Brand"><input type="color" value={form.brand_color} onChange={(e) => set('brand_color', e.target.value)} className="input h-[38px] p-1" /></Field>
         </div>
         <div className="flex justify-end gap-2 pt-2">
@@ -478,7 +475,7 @@ function MembersTab({ coop, initialViewing = null }: { coop: Cooperative; initia
         <StatTile label="Non-members" value={num(nonMembers.length)} icon="person_outline" iconTone="neutral" />
         <StatTile
           label="Cap"
-          value={`${num(members.length)} / ${num(coop.member_cap)}`}
+          value={coop.member_cap ? `${num(members.length)} / ${num(coop.member_cap)}` : `${num(members.length)} · no limit`}
           icon="groups"
           iconTone="neutral"
         />

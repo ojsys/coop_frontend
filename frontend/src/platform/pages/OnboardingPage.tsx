@@ -143,7 +143,6 @@ function StartOnboardingModal({ open, onClose }: { open: boolean; onClose: () =>
     lga: '',
     coop_type: 'Multipurpose',
     tier: 'small',
-    member_cap: '500',
   })
 
   function set(k: keyof typeof form, v: string) {
@@ -162,11 +161,10 @@ function StartOnboardingModal({ open, onClose }: { open: boolean; onClose: () =>
         lga: form.lga,
         coop_type: form.coop_type,
         tier: form.tier,
-        member_cap: Number(form.member_cap),
       })
       toast('Cooperative provisioned — onboarding started at Discovery')
       onClose()
-      setForm({ name: '', registration_no: '', country: '', state: '', lga: '', coop_type: 'Multipurpose', tier: 'small', member_cap: '500' })
+      setForm({ name: '', registration_no: '', country: '', state: '', lga: '', coop_type: 'Multipurpose', tier: 'small' })
       navigate(`/platform/cooperatives/${coop.id}`)
     } catch (err) {
       toast(apiErrorMessage(err, 'Could not start onboarding'), 'error')
@@ -197,9 +195,6 @@ function StartOnboardingModal({ open, onClose }: { open: boolean; onClose: () =>
                 { value: 'large', label: 'Large' },
               ]}
             />
-          </Field>
-          <Field label="Member cap">
-            <input inputMode="numeric" value={form.member_cap} onChange={(e) => set('member_cap', e.target.value)} className="input" />
           </Field>
         </div>
         <div className="flex justify-end gap-2 pt-2">

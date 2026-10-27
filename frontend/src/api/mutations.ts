@@ -434,7 +434,6 @@ export interface UpdateCooperativeInput {
   base_currency?: string
   tier?: string
   brand_color?: string
-  member_cap?: number
   // The collection account is deliberately absent. It is the one field where a
   // single officer could redirect every future payment, so the server refuses
   // it here — it goes through useProposeBankDetails and takes effect only once
@@ -618,7 +617,6 @@ export interface ProvisionCooperativeInput {
   state?: string
   lga?: string
   tier?: string
-  member_cap?: number
 }
 
 export function useProvisionCooperative() {

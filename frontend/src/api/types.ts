@@ -382,7 +382,10 @@ export interface Cooperative {
   tier: 'small' | 'medium' | 'large'
   status: 'prospective' | 'active' | 'suspended' | 'closed'
   brand_color: string
+  /** Top of the plan's member band; 0 = no limit. Follows the plan — read-only. */
   member_cap: number
+  /** The subscription plan (null only if no plan is configured at all). */
+  plan_name?: string | null
   bank_name?: string
   bank_account_name?: string
   bank_account_no?: string
