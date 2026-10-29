@@ -104,6 +104,11 @@ export function MemberDetailPage() {
                   <Button variant="secondary" size="sm" icon="edit" className="flex-1" onClick={() => setEditOpen(true)}>Edit</Button>
                   <Button variant="secondary" size="sm" icon="download" className="flex-1" onClick={downloadPdf}>Statement</Button>
                 </div>
+                {canPayOut && member.email && (
+                  <Button variant="secondary" size="sm" icon="mail" className="mt-2 w-full" onClick={() => navigate(`/console/email?member=${member.id}`)}>
+                    Email {member.full_name.split(' ')[0]}
+                  </Button>
+                )}
                 {/* The same record carries on — loans, savings, history — so
                     converting is a one-step decision, not a re-registration. */}
                 {canPayOut && member.kind === 'non_member' && (

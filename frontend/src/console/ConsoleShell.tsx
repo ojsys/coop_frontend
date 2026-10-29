@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { to: '/console/activity', label: 'Activity', icon: 'timeline' },
   { to: '/console/dividends', label: 'Dividends', icon: 'paid' },
   { to: '/console/announcements', label: 'Announcements', icon: 'campaign' },
+  { to: '/console/email', label: 'Email', icon: 'mail' },
   { to: '/console/settings', label: 'Settings', icon: 'settings' },
   { to: '/console/verification', label: 'Verification', icon: 'verified_user' },
   { to: '/console/guide', label: 'Guide', icon: 'menu_book' },
