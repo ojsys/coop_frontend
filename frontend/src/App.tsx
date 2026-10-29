@@ -16,6 +16,7 @@ import { ConsoleRoutes } from './console/ConsoleRoutes'
 import { MemberRoutes } from './member/MemberRoutes'
 import { PlatformRoutes } from './platform/PlatformRoutes'
 import { PlatformShell } from './platform/PlatformShell'
+import { ReferRoutes } from './refer/ReferPage'
 import { SiteActivityPage } from './platform/pages/SiteActivityPage'
 import { ImpersonationBanner } from './ui/ImpersonationBanner'
 import { useFavicon } from './lib/useFavicon'
@@ -92,6 +93,15 @@ export function App() {
             <RequireSurface surface="app">
               <MemberRoutes />
             </RequireSurface>
+          </RequireAuth>
+        }
+      />
+      {/* Refer & earn: any signed-in account, whatever else it is. */}
+      <Route
+        path="/refer/*"
+        element={
+          <RequireAuth>
+            <ReferRoutes />
           </RequireAuth>
         }
       />

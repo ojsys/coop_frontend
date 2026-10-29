@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PlatformMark } from '@/ui/PlatformMark'
 import { Icon } from '@/ui/Icon'
 import { Field } from '@/ui/Field'
@@ -16,10 +16,17 @@ import {
   useSocietySearch,
   type PublicSociety,
 } from '@/api/signup'
+import {
+  rememberReferralCode,
+  rememberedReferralCode,
+  usePublicReferralProgram,
+  useReferrerSignup,
+} from '@/api/referrals'
 import brandPhoto from '@/assets/site/gallery-meeting.webp'
 
 /**
- * Signing a cooperative up, and asking to join a cooperative already on it.
+ * Signing a cooperative up, asking to join a cooperative already on it, and
+ * signing up to refer cooperatives (refer & earn).
  *
  * Laid out as the two-panel shell the sign-in page uses, so the three public
  * auth surfaces read as one product. The signup is split across two steps:
@@ -31,7 +38,7 @@ import brandPhoto from '@/assets/site/gallery-meeting.webp'
  * society (its KYC) is a later step the dashboard walks them through.
  */
 
-type Mode = 'choose' | 'society' | 'member'
+type Mode = 'choose' | 'society' | 'member' | 'refer'
 
 const APPLICATION_STEPS = ['Your cooperative', 'About you']
 
@@ -46,6 +53,11 @@ export function SignupPage() {
   // the society already chosen.
   const { code } = useParams<{ code: string }>()
   const [mode, setMode] = useState<Mode>(code ? 'member' : 'choose')
+  // A referrer's link (/signup?ref=CODE). Kept in the browser so the credit
+  // survives a detour round the site before the society signs up.
+  const [params] = useSearchParams()
+  const ref = params.get('ref')
+  useEffect(() => rememberReferralCode(ref), [ref])
   const { data: branding } = usePublicBranding()
   const { data: cms } = usePublicSiteContent()
   const productName = branding?.name || 'CooperativeOS'
@@ -121,6 +133,7 @@ export function SignupPage() {
           {mode === 'choose' && <Chooser onPick={setMode} />}
           {mode === 'society' && <CooperativeApplication onBack={() => setMode('choose')} />}
           {mode === 'member' && <MemberJoin joinCode={code} onBack={() => setMode('choose')} />}
+          {mode === 'refer' && <ReferrerSignup onBack={() => setMode('choose')} />}
 
           <p className="mt-8 hidden border-t border-line pt-5 text-sm text-muted lg:block">
             Already have an account?{' '}
@@ -136,6 +149,7 @@ export function SignupPage() {
 
 // ── Choosing a path ─────────────────────────────────────────────────────────
 function Chooser({ onPick }: { onPick: (m: Mode) => void }) {
+  const { data: program } = usePublicReferralProgram()
   const options = [
     {
       mode: 'society' as const,
@@ -151,6 +165,18 @@ function Chooser({ onPick }: { onPick: (m: Mode) => void }) {
       body: 'Your cooperative already uses CooperativeOS and you’d like your own access. An officer reviews every request before an account is created.',
       cta: 'Request membership',
     },
+    // Only while the program is taking referrers; the terms are the live ones.
+    ...(program?.active
+      ? [
+          {
+            mode: 'refer' as const,
+            icon: 'redeem',
+            title: 'Refer cooperatives and earn',
+            body: `Know cooperatives that should be on CooperativeOS? Share your link and earn ${Number(program.commission_percent)}% of everything each one pays for its first ${program.commission_months} months.`,
+            cta: 'Start referring',
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -199,6 +225,19 @@ function Chooser({ onPick }: { onPick: (m: Mode) => void }) {
 }
 
 // ── Shared pieces ───────────────────────────────────────────────────────────
+/** What signing up agrees to. Both pages are edited by the legal team on the
+ *  platform's Legal pages screen. */
+function TermsNote() {
+  return (
+    <p className="mt-4 text-[12px] leading-relaxed text-muted">
+      By continuing you agree to our{' '}
+      <Link to="/terms" target="_blank" className="font-medium text-green hover:underline">Terms and Conditions</Link>{' '}
+      and{' '}
+      <Link to="/privacy" target="_blank" className="font-medium text-green hover:underline">Privacy Notice</Link>.
+    </p>
+  )
+}
+
 function FormHeader({
   onBack,
   title,
@@ -333,6 +372,7 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
       created = await apply.mutateAsync({
         ...form,
         estimated_members: Number(form.estimated_members) || 0,
+        referral_code: rememberedReferralCode(),
       })
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not set up your cooperative.'))
@@ -453,6 +493,7 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
           </div>
         )}
 
+        {step === APPLICATION_STEPS.length - 1 && <TermsNote />}
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5">
           <Button
             type="button"
@@ -478,6 +519,100 @@ function CooperativeApplication({ onBack }: { onBack: () => void }) {
               Create my cooperative
             </Button>
           )}
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ── Signing up to refer ─────────────────────────────────────────────────────
+function ReferrerSignup({ onBack }: { onBack: () => void }) {
+  const signup = useReferrerSignup()
+  const { data: program } = usePublicReferralProgram()
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+  const [form, setForm] = useState({ full_name: '', email: '', phone: '', password: '' })
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    try {
+      await signup.mutateAsync(form)
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not sign you up.'))
+      return
+    }
+    try {
+      await login(form.email, form.password)
+      navigate('/refer', { replace: true })
+    } catch {
+      navigate('/login', { replace: true })
+    }
+  }
+
+  const percent = program ? Number(program.commission_percent) : null
+
+  return (
+    <div>
+      <FormHeader
+        onBack={onBack}
+        title="Refer cooperatives and earn"
+        intro={
+          percent != null
+            ? `Earn ${percent}% of what each cooperative you bring pays, for its first ${program!.commission_months} months. No cooperative of your own needed.`
+            : 'Earn a share of what each cooperative you bring pays. No cooperative of your own needed.'
+        }
+      />
+
+      <form onSubmit={submit} className="rounded-card border border-line bg-card p-6 shadow-soft">
+        <div className="space-y-4">
+          <Field label="Your name">
+            <input required autoFocus value={form.full_name} className="input" onChange={(e) => set('full_name', e.target.value)} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Email">
+              <input required type="email" value={form.email} className="input" onChange={(e) => set('email', e.target.value)} />
+            </Field>
+            <Field label="Phone" hint="Optional.">
+              <input value={form.phone} className="input" placeholder="0803 000 0000" onChange={(e) => set('phone', e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Choose a password" hint="At least 8 characters. Already on CooperativeOS? Use your existing password.">
+            <input
+              required
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={form.password}
+              className="input"
+              onChange={(e) => set('password', e.target.value)}
+            />
+          </Field>
+
+          <ol className="space-y-2 rounded-xl border border-line bg-sand/50 p-4 text-sm text-muted">
+            {[
+              'You get a personal link to share — on WhatsApp, at meetings, anywhere.',
+              'A cooperative signs up through it and uses its free month.',
+              'Each time it pays, your share lands in your balance. Withdraw it to your bank.',
+            ].map((item, i) => (
+              <li key={item} className="flex items-start gap-2.5">
+                <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-green-50 font-mono text-[11px] font-semibold text-green">
+                  {i + 1}
+                </span>
+                <span className="leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ol>
+
+          {error && <ErrorNote message={error} />}
+        </div>
+
+        <TermsNote />
+        <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5">
+          <Button type="button" variant="ghost" onClick={onBack}>Back</Button>
+          <Button type="submit" loading={signup.isPending}>Get my referral link</Button>
         </div>
       </form>
     </div>
@@ -722,6 +857,7 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
           {error && <ErrorNote message={error} />}
         </div>
 
+        <TermsNote />
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5">
           <Button type="button" variant="ghost" onClick={onBack}>
             Back

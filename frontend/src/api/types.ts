@@ -73,6 +73,8 @@ export interface CurrentUser {
   phone: string
   national_id: string
   is_platform_admin: boolean
+  /** Refers cooperatives (refer & earn). A referrer may belong to none. */
+  is_referrer?: boolean
   two_factor_enabled: boolean
   memberships: MembershipSummary[]
 }

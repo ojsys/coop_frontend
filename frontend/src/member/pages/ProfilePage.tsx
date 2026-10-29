@@ -176,6 +176,14 @@ export function ProfilePage() {
             <span className="text-sm font-medium">View website</span>
           </Link>
           <div className="border-t border-line" />
+          <Link
+            to="/refer"
+            className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-ink-soft transition hover:bg-sand-deep"
+          >
+            <Icon name="redeem" size={20} />
+            <span className="text-sm font-medium">Refer a cooperative &amp; earn</span>
+          </Link>
+          <div className="border-t border-line" />
           {/* Reachable from inside the app, not only the public footer: this is
               where a member looks for what is held about them and how to have it
               deleted, and the app stores would expect to find it here too. */}

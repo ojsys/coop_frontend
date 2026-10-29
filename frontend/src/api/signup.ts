@@ -31,6 +31,8 @@ export interface CooperativeApplication {
   coop_type?: string
   estimated_members?: number
   message?: string
+  /** From a referrer's link; an unknown code is ignored by the server. */
+  referral_code?: string
 }
 
 export interface JoinRequestInput {

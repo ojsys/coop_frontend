@@ -47,12 +47,16 @@ export async function confirmPasswordReset(input: {
 //   platform admin        -> /platform
 //   holds an official role -> /console
 //   plain member           -> /app
-export type Surface = 'platform' | 'console' | 'app'
+export type Surface = 'platform' | 'console' | 'app' | 'refer'
 
 export function landingSurface(user: CurrentUser): Surface {
   if (user.is_platform_admin) return 'platform'
   // Same rule the backend enforces (Role.is_officer), asked for rather than
   // guessed from the slug.
   const official = user.memberships.some((m) => m.is_officer)
-  return official ? 'console' : 'app'
+  if (official) return 'console'
+  // Someone who signed up only to refer belongs to no cooperative: the
+  // member app has nothing to show them.
+  if (!user.memberships.length && user.is_referrer) return 'refer'
+  return 'app'
 }

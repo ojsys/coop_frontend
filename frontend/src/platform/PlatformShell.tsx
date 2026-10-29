@@ -11,6 +11,7 @@ const NAV: NavItem[] = [
   { to: '/platform/users', label: 'Users', icon: 'manage_accounts' },
   { to: '/platform/verification', label: 'Verification', icon: 'verified_user' },
   { to: '/platform/email', label: 'Email', icon: 'mail' },
+  { to: '/platform/referrals', label: 'Referrals', icon: 'redeem' },
   { to: '/platform/onboarding', label: 'Assisted onboarding', icon: 'conveyor_belt' },
   { to: '/platform/billing', label: 'Billing', icon: 'receipt_long' },
   { to: '/platform/white-label', label: 'White-label', icon: 'palette' },
@@ -19,6 +20,7 @@ const NAV: NavItem[] = [
   // the revenue analytics it sits next to.
   { to: '/analytics', label: 'Site Activity', icon: 'timeline' },
   { to: '/platform/health', label: 'System Health', icon: 'monitor_heart' },
+  { to: '/platform/legal', label: 'Legal pages', icon: 'gavel' },
   { to: '/platform/settings', label: 'Platform Settings', icon: 'settings' },
   { to: '/platform/guide', label: 'Staff Guide', icon: 'menu_book' },
 ]

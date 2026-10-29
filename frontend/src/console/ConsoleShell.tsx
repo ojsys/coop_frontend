@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { to: '/console/settings', label: 'Settings', icon: 'settings' },
   { to: '/console/verification', label: 'Verification', icon: 'verified_user' },
   { to: '/console/guide', label: 'Guide', icon: 'menu_book' },
+  { to: '/refer', label: 'Refer & earn', icon: 'redeem' },
 ]
 
 function PlanCard() {

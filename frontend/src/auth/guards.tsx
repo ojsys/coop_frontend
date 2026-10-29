@@ -45,7 +45,7 @@ export function RequireSurface({
         // as by the API. Inferring it from `role_slug !== 'member'` diverged the
         // moment such a role existed.
         ? user.memberships.some((m) => m.is_officer)
-        : true // every authenticated user may see the member app
+        : true // the member app and refer & earn are open to every account
 
   if (!allowed) return <Navigate to={`/${landingSurface(user)}`} replace />
   return <>{children}</>
