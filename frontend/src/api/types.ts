@@ -400,7 +400,7 @@ export interface Cooperative {
   /** The invite link is /join/<join_code>; officers choose the code. */
   join_code?: string | null
   join_link_enabled?: boolean
-  /** Findable in the member signup search before KYC is verified. */
+  /** Findable in the member signup search (on unless the platform unlisted it). */
   publicly_listed?: boolean
   created_at: string
 }

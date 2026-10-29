@@ -337,7 +337,7 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
     tier: coop.tier,
     brand_color: coop.brand_color,
   })
-  const [listed, setListed] = useState(!!coop.publicly_listed)
+  const [listed, setListed] = useState(coop.publicly_listed ?? true)
 
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }))
@@ -400,9 +400,9 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
         <label className="flex items-start gap-2 text-[13px] text-ink-soft">
           <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} className="mt-0.5 accent-green" />
           <span>
-            Show in the member signup search before KYC is verified
+            Show in the member signup search
             <span className="block text-muted">
-              For societies the team already knows. A verified society is always shown.
+              On for every society. Untick to hide a look-alike, or one that asks not to be found.
             </span>
           </span>
         </label>
