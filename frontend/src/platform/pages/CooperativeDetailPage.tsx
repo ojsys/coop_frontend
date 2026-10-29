@@ -337,6 +337,7 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
     tier: coop.tier,
     brand_color: coop.brand_color,
   })
+  const [listed, setListed] = useState(!!coop.publicly_listed)
 
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }))
@@ -355,6 +356,7 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
         base_currency: form.base_currency,
         tier: form.tier,
         brand_color: form.brand_color,
+        publicly_listed: listed,
       })
       toast('Society profile updated')
       onClose()
@@ -395,6 +397,15 @@ function ProfileModal({ coop, onClose }: { coop: Cooperative; onClose: () => voi
           <Field label="Currency"><input value={form.base_currency} maxLength={3} onChange={(e) => set('base_currency', e.target.value)} className="input" /></Field>
           <Field label="Brand"><input type="color" value={form.brand_color} onChange={(e) => set('brand_color', e.target.value)} className="input h-[38px] p-1" /></Field>
         </div>
+        <label className="flex items-start gap-2 text-[13px] text-ink-soft">
+          <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} className="mt-0.5 accent-green" />
+          <span>
+            Show in the member signup search before KYC is verified
+            <span className="block text-muted">
+              For societies the team already knows. A verified society is always shown.
+            </span>
+          </span>
+        </label>
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
           <Button type="submit" size="sm" loading={update.isPending}>Save profile</Button>

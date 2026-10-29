@@ -446,6 +446,8 @@ export interface UpdateCooperativeInput {
   statement_footer?: string
   join_code?: string
   join_link_enabled?: boolean
+  /** Platform only: findable in the member signup search before KYC. */
+  publicly_listed?: boolean
 }
 
 export function useUpdateCooperative() {
