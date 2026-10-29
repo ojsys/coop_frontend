@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { AxiosRequestConfig } from 'axios'
 import { api } from './client'
 import { useAuth } from '@/auth/AuthContext'
@@ -386,6 +386,24 @@ export function useCooperatives() {
     queryFn: async () => {
       return getAll<Cooperative>('/cooperatives/')
     },
+  })
+}
+
+export const COOPERATIVES_PAGE_SIZE = 25
+export type CooperativeOrdering = '-created_at' | 'name'
+
+/** One page of the platform's Cooperatives list, searched and sorted on the
+ *  server so the page stays quick however many societies sign up. */
+export function useCooperativesPage(search: string, page: number, ordering: CooperativeOrdering) {
+  return useQuery({
+    queryKey: ['cooperatives', 'page', search, page, ordering],
+    queryFn: async () => {
+      const { data } = await api.get<Paginated<Cooperative>>('/cooperatives/', {
+        params: { search: search || undefined, page, ordering, page_size: COOPERATIVES_PAGE_SIZE },
+      })
+      return data
+    },
+    placeholderData: keepPreviousData,
   })
 }
 

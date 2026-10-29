@@ -1,31 +1,41 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCooperatives, usePlatformMemberSearch } from '@/api/hooks'
+import {
+  COOPERATIVES_PAGE_SIZE,
+  useCooperativesPage,
+  usePlatformMemberSearch,
+  type CooperativeOrdering,
+} from '@/api/hooks'
 import { PageHeader } from '@/ui/PageHeader'
 import { Card } from '@/ui/Card'
 import { Button } from '@/ui/Button'
 import { Icon } from '@/ui/Icon'
 import { Avatar } from '@/ui/Avatar'
 import { StatusPill, Badge } from '@/ui/Badge'
-import { Table, type Column } from '@/ui/Table'
+import { Pagination, Table, type Column } from '@/ui/Table'
 import { QueryState } from '@/ui/QueryState'
-import { memberCap } from '@/lib/format'
+import { longDate, memberCap } from '@/lib/format'
 import type { Cooperative } from '@/api/types'
 
 const TIER_LABEL: Record<string, string> = { small: 'Small', medium: 'Medium', large: 'Large' }
 
 export function CooperativesPage() {
   const navigate = useNavigate()
-  const { data = [], isLoading, isError } = useCooperatives()
+  const [text, setText] = useState('')
   const [search, setSearch] = useState('')
-
-  const rows = useMemo(() => {
-    if (!search) return data
-    const q = search.toLowerCase()
-    return data.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.state.toLowerCase().includes(q) || c.registration_no.toLowerCase().includes(q),
-    )
-  }, [data, search])
+  const [ordering, setOrdering] = useState<CooperativeOrdering>('-created_at')
+  const [page, setPage] = useState(1)
+  // Debounced, and back to the first page whenever what is listed changes.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(text.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [text])
+  const { data, isLoading, isError } = useCooperativesPage(search, page, ordering)
+  const rows = data?.results ?? []
+  const total = data?.count ?? 0
 
   const columns: Column<Cooperative>[] = [
     {
@@ -42,6 +52,11 @@ export function CooperativesPage() {
       ),
     },
     { key: 'state', header: 'State', render: (c) => c.state || '—' },
+    {
+      key: 'joined',
+      header: 'Joined',
+      render: (c) => <span className="whitespace-nowrap text-[13px] text-muted">{longDate(c.created_at)}</span>,
+    },
     { key: 'cap', header: 'Member cap', align: 'right', render: (c) => <span className="font-mono tnum">{memberCap(c.member_cap)}</span> },
     { key: 'plan', header: 'Plan', render: (c) => <Badge tone="neutral">{c.plan_name ?? TIER_LABEL[c.tier] ?? c.tier}</Badge> },
     { key: 'status', header: 'Status', render: (c) => <StatusPill status={c.status} /> },
@@ -52,7 +67,7 @@ export function CooperativesPage() {
     <div>
       <PageHeader
         title="Cooperatives"
-        subtitle={`${data.length} tenants · each fully isolated · row-level scoped`}
+        subtitle={`${total.toLocaleString()} ${search ? 'matching' : 'tenants'} · each fully isolated · row-level scoped`}
         actions={
           <Button size="sm" icon="add_business" onClick={() => navigate('/platform/provision')}>
             Provision cooperative
@@ -67,11 +82,28 @@ export function CooperativesPage() {
           <div className="flex flex-1 items-center gap-2 rounded-md border border-line bg-paper px-3 py-2">
             <Icon name="search" size={18} className="text-muted-2" />
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
               placeholder="Search cooperative, state, reg. number…"
               className="w-full bg-transparent text-sm outline-none placeholder:text-muted-2"
             />
+          </div>
+          <div className="flex shrink-0 rounded-md border border-line bg-paper p-0.5 text-[13px]">
+            {([['-created_at', 'Newest'], ['name', 'A–Z']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setOrdering(key)
+                  setPage(1)
+                }}
+                className={`rounded px-2.5 py-1 font-medium transition ${
+                  ordering === key ? 'bg-green text-paper' : 'text-ink-soft hover:bg-sand'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
         <QueryState isLoading={isLoading} isError={isError}>
@@ -81,6 +113,11 @@ export function CooperativesPage() {
             rowKey={(c) => c.id}
             onRowClick={(c) => navigate(`/platform/cooperatives/${c.id}`)}
           />
+          {total > 0 && (
+            <div className="border-t border-line">
+              <Pagination page={page} pageSize={COOPERATIVES_PAGE_SIZE} total={total} onPage={setPage} />
+            </div>
+          )}
         </QueryState>
       </Card>
     </div>
