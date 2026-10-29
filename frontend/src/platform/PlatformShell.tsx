@@ -10,6 +10,7 @@ const NAV: NavItem[] = [
   { to: '/platform/cooperatives', label: 'Cooperatives', icon: 'apartment' },
   { to: '/platform/users', label: 'Users', icon: 'manage_accounts' },
   { to: '/platform/verification', label: 'Verification', icon: 'verified_user' },
+  { to: '/platform/email', label: 'Email', icon: 'mail' },
   { to: '/platform/onboarding', label: 'Assisted onboarding', icon: 'conveyor_belt' },
   { to: '/platform/billing', label: 'Billing', icon: 'receipt_long' },
   { to: '/platform/white-label', label: 'White-label', icon: 'palette' },

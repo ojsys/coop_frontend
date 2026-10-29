@@ -13,6 +13,7 @@ import { PlatformSettingsPage } from './pages/PlatformSettingsPage'
 import { GuidePage } from './pages/GuidePage'
 import { UsersPage } from './pages/UsersPage'
 import { VerificationQueuePage } from './pages/VerificationQueuePage'
+import { EmailPage } from './pages/EmailPage'
 
 export function PlatformRoutes() {
   return (
@@ -24,6 +25,7 @@ export function PlatformRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="provision" element={<ProvisionPage />} />
         <Route path="verification" element={<VerificationQueuePage />} />
+        <Route path="email" element={<EmailPage />} />
         <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="white-label" element={<WhiteLabelPage />} />
