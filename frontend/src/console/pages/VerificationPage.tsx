@@ -27,7 +27,8 @@ import { dateTime } from '@/lib/format'
  * The society's KYC checklist.
  *
  * Three things, in the order they tend to happen: confirm your own email,
- * have each exco office filled by someone who has uploaded an ID, and upload
+ * have a Chairperson who has uploaded an ID (Secretary and Treasurer are
+ * optional, since some societies are run by one person), and upload
  * the certificate of registration. The checklist itself comes from the server
  * (tenants/verification.py), so this page never decides what counts as done.
  */
@@ -129,8 +130,8 @@ export function VerificationPage() {
       {/* 2 — Exco */}
       <Card className="mb-4">
         <CardHeader
-          title={<Step n={2} done={data.officers.every((o) => o.done)}>Your exco’s IDs</Step>}
-          subtitle="Each office held by an active member who has uploaded a means of ID — NIN slip, passport, driver's licence or voter's card."
+          title={<Step n={2} done={data.officers.filter((o) => o.required).every((o) => o.done)}>Your exco’s IDs</Step>}
+          subtitle="Your Chairperson uploads a means of ID — NIN slip, passport, driver's licence or voter's card. A Secretary and Treasurer are optional: add them if your society has them."
           action={
             canAct && !locked ? (
               <Link to="/console/members" className="text-[13px] font-semibold text-green hover:underline">
@@ -145,11 +146,15 @@ export function VerificationPage() {
               <div className="mb-1.5 flex items-center gap-2">
                 <DoneIcon done={office.done} />
                 <span className="text-sm font-semibold text-ink">{office.role_name}</span>
+                <span className="text-[12px] text-muted-2">
+                  {office.required ? 'Required' : 'Optional'}
+                </span>
               </div>
               {office.holders.length === 0 ? (
                 <p className="pl-7 text-[13px] text-muted">
-                  Nobody holds this office yet. Add them as a member, then give them the{' '}
-                  {office.role_name} role.
+                  {office.required
+                    ? `Nobody holds this office yet. Add them as a member, then give them the ${office.role_name} role.`
+                    : `Not needed to submit. If your society has a ${office.role_name}, add them as a member and give them the role.`}
                 </p>
               ) : (
                 <ul className="space-y-1.5 pl-7">

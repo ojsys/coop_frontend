@@ -23,6 +23,8 @@ export interface VerificationHolder {
 export interface VerificationOffice {
   role_slug: 'chairperson' | 'secretary' | 'treasurer'
   role_name: string
+  /** Only the Chairperson is required; Secretary and Treasurer are optional. */
+  required: boolean
   holders: VerificationHolder[]
   done: boolean
 }

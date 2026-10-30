@@ -65,7 +65,7 @@ const SECTIONS: GuideSection[] = [
         </p>
         <Steps
           items={[
-            <>The society fills its exco — Chairperson, Secretary and Treasurer — and each uploads a means of ID.</>,
+            <>The society's Chairperson uploads a means of ID. A Secretary and Treasurer are optional, since some societies are run by one person; if they are appointed, their IDs show here too.</>,
             <>An officer uploads the certificate of registration and sends it for review. It arrives in <strong>Verification</strong>, and the team is emailed.</>,
             <>Check the IDs match the names and the certificate matches the society. <strong>Approve</strong>, or <strong>Request changes</strong> with a note the officers will read.</>,
           ]}

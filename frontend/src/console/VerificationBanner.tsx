@@ -10,7 +10,7 @@ import { apiErrorMessage } from '@/lib/apiError'
  * The standing prompt on the dashboard while a society is not yet verified.
  *
  * A society is live from signup and can keep its books at once; verification
- * (its exco's IDs and its registration certificate) is what opens online
+ * (its Chairperson's ID and its registration certificate) is what opens online
  * payments. So this never blocks anything — it says what waits, how long the
  * trial has left, and links to the checklist.
  */
@@ -45,7 +45,7 @@ export function VerificationBanner() {
   const copy = {
     not_started: {
       title: 'Verify your cooperative to start taking payments online.',
-      body: 'Your exco uploads their IDs and you add the certificate of registration. Until then, members can’t pay online and loans can’t be paid out electronically — everything else works.',
+      body: 'Your Chairperson uploads a means of ID and you add the certificate of registration. Until then, members can’t pay online and loans can’t be paid out electronically — everything else works.',
       cta: 'Start verification',
     },
     submitted: {

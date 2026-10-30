@@ -156,7 +156,11 @@ function ReviewModal({ cooperativeId, onClose }: { cooperativeId: number; onClos
                 {data.checklist.officers.map((o) => (
                   <li key={o.role_slug} className="rounded-lg border border-line px-3 py-2">
                     <div className="text-[13px] font-semibold text-ink">{o.role_name}</div>
-                    {o.holders.length === 0 && <p className="text-[13px] text-danger">Vacant</p>}
+                    {o.holders.length === 0 && (
+                      <p className={`text-[13px] ${o.required ? 'text-danger' : 'text-muted'}`}>
+                        {o.required ? 'Vacant' : 'Vacant (optional)'}
+                      </p>
+                    )}
                     {o.holders.map((h) => (
                       <div key={h.membership_id} className="mt-1 flex flex-wrap items-center gap-2 text-[13px]">
                         <span className="text-ink-soft">{h.full_name}</span>
