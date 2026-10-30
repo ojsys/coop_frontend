@@ -133,7 +133,7 @@ export function VerificationPage() {
           title={<Step n={2} done={data.officers.filter((o) => o.required).every((o) => o.done)}>Your exco’s IDs</Step>}
           subtitle="Your Chairperson uploads a means of ID — NIN slip, passport, driver's licence or voter's card. A Secretary and Treasurer are optional: add them if your society has them."
           action={
-            canAct && !locked ? (
+            canAct ? (
               <Link to="/console/members" className="text-[13px] font-semibold text-green hover:underline">
                 Appoint officers
               </Link>
@@ -163,7 +163,11 @@ export function VerificationPage() {
                       key={h.membership_id}
                       holder={h}
                       isYou={h.user_id === user?.id}
-                      canUpload={canAct && !locked}
+                      required={office.required}
+                      // The Chairperson's ID is what we review, so it is fixed
+                      // once sent. A Secretary or Treasurer can add theirs at
+                      // any time, during review or after verification.
+                      canUpload={canAct && (!locked || !office.required)}
                     />
                   ))}
                 </ul>
@@ -296,10 +300,12 @@ function DoneIcon({ done }: { done: boolean }) {
 function HolderRow({
   holder,
   isYou,
+  required,
   canUpload,
 }: {
   holder: VerificationHolder
   isYou: boolean
+  required: boolean
   canUpload: boolean
 }) {
   const upload = useUploadMemberDocument()
@@ -349,8 +355,10 @@ function HolderRow({
             Upload ID
           </Button>
         </>
-      ) : (
+      ) : required ? (
         <Badge tone="gold">ID needed</Badge>
+      ) : (
+        <Badge tone="neutral">No ID yet</Badge>
       )}
     </li>
   )
