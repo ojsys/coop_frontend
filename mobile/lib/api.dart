@@ -181,7 +181,10 @@ class Api {
     try {
       final j = jsonDecode(res.body);
       if (j is Map) {
-        if (j['detail'] != null) return j['detail'].toString();
+        final detail = j['detail'];
+        // A ValidationError raised as {"detail": [...]} arrives as a list.
+        if (detail is List && detail.isNotEmpty) return detail.first.toString();
+        if (detail != null) return detail.toString();
         for (final v in j.values) {
           if (v is List && v.isNotEmpty) return v.first.toString();
           if (v is String && v.isNotEmpty) return v;
@@ -427,6 +430,38 @@ class Api {
     final list =
         await _getList('/public/societies/?q=${Uri.encodeQueryComponent(q)}');
     return list.map((j) => Society.fromJson(j as Map<String, dynamic>)).toList();
+  }
+
+  /// The society behind an invite code or a pasted invite link
+  /// (…/join/<code>). Throws a 404 [ApiException] for a dead link.
+  Future<Society> societyForInvite(String codeOrLink) async {
+    var code = codeOrLink.trim();
+    final at = code.indexOf('/join/');
+    if (at >= 0) code = code.substring(at + 6);
+    code = code.split(RegExp(r'[/?#]')).first;
+    if (code.isEmpty) throw ApiException('Paste the invite link again.', 400);
+    return Society.fromJson(
+        await _get('/public/join/${Uri.encodeComponent(code)}/'));
+  }
+
+  /// Someone without an account asks a society to admit them, as on the
+  /// website's signup page. An officer approves; we then email them a link to
+  /// choose a password, and they sign in here.
+  Future<String> requestToJoin({
+    required int cooperativeId,
+    required String fullName,
+    required String email,
+    String phone = '',
+    String message = '',
+  }) async {
+    final res = await _post('/public/join/', {
+      'cooperative': cooperativeId,
+      'full_name': fullName,
+      'email': email,
+      'phone': phone,
+      'message': message,
+    });
+    return res['detail'] as String? ?? 'Your request has been sent.';
   }
 
   /// Requests still waiting, or recently declined.

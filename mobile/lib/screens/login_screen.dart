@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../theme.dart';
+import 'join_screen.dart';
 import 'password_sheets.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -114,6 +115,25 @@ class _LoginScreenState extends State<LoginScreen> {
                             strokeWidth: 2, color: AppColors.green))
                     : const Text('Sign in',
                         style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 12),
+              // No account yet: ask a society to admit you, as on the
+              // website's signup page. Officers approve; we email a link to
+              // choose a password, and the member signs in above.
+              OutlinedButton(
+                onPressed: _busy
+                    ? null
+                    : () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => JoinScreen(api: widget.api))),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.paper,
+                  side: const BorderSide(color: Color(0x66F4F1EA)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('New here? Join your cooperative',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
               ),
               const Spacer(),
               const Text(
