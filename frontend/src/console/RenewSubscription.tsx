@@ -7,6 +7,7 @@ import { Icon } from '@/ui/Icon'
 import { apiErrorMessage } from '@/lib/apiError'
 import { longDate, naira } from '@/lib/format'
 import { useSubscriptionState } from './subscription'
+import { useAuth } from '@/auth/AuthContext'
 
 /**
  * Renewing the society's subscription from the console.
@@ -24,22 +25,25 @@ import { useSubscriptionState } from './subscription'
 function useRenew() {
   const navigate = useNavigate()
   const toast = useToast()
-  const { invoice } = useSubscriptionState()
+  const { refresh } = useAuth()
   const mutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<{ pay_token: string }>('/subscription/renew/')
+      const { data } = await api.post<{ pay_token: string; paid: boolean }>('/subscription/renew/')
       return data
     },
   })
   return {
     pending: mutation.isPending,
     renew: async () => {
-      if (invoice?.pay_token) {
-        navigate(`/billing/pay/${invoice.pay_token}`)
-        return
-      }
       try {
-        const { pay_token } = await mutation.mutateAsync()
+        // Always asks the server: it checks with Paystack first, so a payment
+        // whose confirmation went astray unlocks here instead of being paid twice.
+        const { pay_token, paid } = await mutation.mutateAsync()
+        if (paid) {
+          await refresh()
+          toast('Your payment is confirmed. Welcome back.')
+          return
+        }
         navigate(`/billing/pay/${pay_token}`)
       } catch (err) {
         toast(apiErrorMessage(err, 'Could not start the renewal.'), 'error')

@@ -178,6 +178,7 @@ export function usePublicInvoice(token: string | undefined) {
 
 /** Start a checkout for this invoice; returns a fresh Paystack reference. */
 export async function startInvoicePayment(token: string): Promise<PublicInvoice> {
+  // The server sets Paystack's return address to this invoice's pay page.
   const { data } = await api.post<PublicInvoice>(`/public/invoice/${token}/`, {})
   return data
 }

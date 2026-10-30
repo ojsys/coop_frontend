@@ -749,6 +749,8 @@ export interface Invoice {
   issued_at: string | null
   due_at: string | null
   paid_at: string | null
+  /** Set once someone reached Paystack checkout for it. */
+  psp_reference?: string
   created_at: string
 }
 

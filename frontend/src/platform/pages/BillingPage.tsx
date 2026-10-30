@@ -34,6 +34,23 @@ export function BillingPage() {
     }
   }
 
+  // Payments normally settle themselves (the webhook, the payer's return, the
+  // daily cycle). This asks Paystack about one that did not; marking paid by
+  // hand is for money that never went through Paystack at all.
+  async function recheck(inv: Invoice) {
+    try {
+      const result = (await action.mutateAsync({ id: inv.id, action: 'recheck' })) as { paid?: boolean }
+      toast(
+        result?.paid
+          ? `${inv.number} confirmed by Paystack and settled`
+          : `Paystack has not confirmed a full payment for ${inv.number}`,
+        result?.paid ? undefined : 'error',
+      )
+    } catch (err) {
+      toast(apiErrorMessage(err, 'Could not check with Paystack'), 'error')
+    }
+  }
+
   const columns: Column<Invoice>[] = [
     { key: 'coop', header: 'Cooperative', render: (i) => <span className="font-medium text-ink">{i.cooperative_name}</span> },
     { key: 'number', header: 'Invoice', render: (i) => <span className="font-mono text-xs text-muted">{i.number}</span> },
@@ -50,8 +67,15 @@ export function BillingPage() {
           <button onClick={() => setEditing(i)} className="rounded-md p-1.5 text-muted-2 transition hover:bg-sand hover:text-ink" title="Edit invoice">
             <Icon name="edit" size={17} />
           </button>
+          {i.status !== 'paid' && i.status !== 'void' && i.psp_reference && (
+            <Button size="sm" variant="secondary" icon="sync" onClick={() => recheck(i)}
+              loading={action.isPending && action.variables?.id === i.id && action.variables?.action === 'recheck'}>
+              Check Paystack
+            </Button>
+          )}
           {i.status !== 'paid' && i.status !== 'void' && (
-            <Button size="sm" variant="secondary" onClick={() => markPaid(i)} loading={action.isPending && action.variables?.id === i.id}>
+            <Button size="sm" variant="secondary" onClick={() => markPaid(i)}
+              loading={action.isPending && action.variables?.id === i.id && action.variables?.action === 'mark-paid'}>
               Mark paid
             </Button>
           )}

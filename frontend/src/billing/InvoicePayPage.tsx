@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useAuth } from '@/auth/AuthContext'
 import {
   usePublicBranding,
   usePublicInvoice,
@@ -30,6 +31,46 @@ export function InvoicePayPage() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [paid, setPaid] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { user, refresh } = useAuth()
+  const navigate = useNavigate()
+
+  // Back from Paystack's hosted checkout: it appends the reference. Confirm
+  // it at once, so a paid society is let back in without anyone marking it.
+  const returned = searchParams.get('reference') || searchParams.get('trxref')
+  const confirming = useRef(false)
+  useEffect(() => {
+    if (!returned || confirming.current) return
+    confirming.current = true
+    setBusy(true)
+    verifyInvoicePayment(returned)
+      .then((result) => {
+        setPaid(result.paid)
+        setMessage(
+          result.paid
+            ? 'Payment received — thank you.'
+            : 'Paystack has not confirmed this payment yet. Refresh in a minute; if it still shows unpaid, reply to the invoice email.',
+        )
+        refetch()
+      })
+      .catch((err) => setMessage(apiErrorMessage(err, 'Could not confirm the payment.')))
+      .finally(() => {
+        setBusy(false)
+        setSearchParams({}, { replace: true })
+      })
+  }, [returned, refetch, setSearchParams])
+
+  // Paid and signed in: re-read the subscription so the console unlocks, and
+  // go straight to the dashboard.
+  const settled = paid || invoice?.payable === false
+  useEffect(() => {
+    if (!settled || !user) return
+    const timer = window.setTimeout(async () => {
+      await refresh()
+      navigate('/console', { replace: true })
+    }, 2500)
+    return () => window.clearTimeout(timer)
+  }, [settled, user, refresh, navigate])
 
   async function pay() {
     if (!token) return
@@ -140,12 +181,8 @@ export function InvoicePayPage() {
                 <Icon name="check_circle" size={18} fill />
                 <span>
                   This invoice is settled. Nothing further is needed — a receipt
-                  has gone to your cooperative's contact address.{' '}
-                  {/* A full load, so the console re-reads the subscription and
-                      unlocks. */}
-                  <a href="/console" className="font-semibold underline">
-                    Back to the console
-                  </a>
+                  has gone to your cooperative's contact address.
+                  {user && <> Taking you to your dashboard…</>}
                 </span>
               </div>
             ) : (
