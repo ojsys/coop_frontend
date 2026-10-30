@@ -13,6 +13,7 @@ import {
   usePublicSiteContent,
   type PublicPlan,
 } from '@/api/public'
+import { usePublicReferralProgram, type ReferralProgram } from '@/api/referrals'
 
 // Default photography, bundled rather than uploaded. Each one is overridden
 // the moment an admin uploads their own on the matching CMS screen, so these
@@ -257,6 +258,9 @@ export function LandingPage() {
     ? gallery
     : (cms?.gallery_has_custom ? [] : GALLERY_DEFAULTS)
   const apps = cms?.apps
+  // Refer & earn is advertised only while the program takes new referrers.
+  const { data: referral } = usePublicReferralProgram()
+  const showReferral = Boolean(referral?.active)
   const cta = cms?.cta
 
   // Hidden until there is something to link to or say about the apps.
@@ -309,6 +313,9 @@ export function LandingPage() {
               <a href="#apps" className="text-muted transition hover:text-ink">Mobile app</a>
             )}
             <a href="#pricing" className="text-muted transition hover:text-ink">Pricing</a>
+            {showReferral && (
+              <a href="#refer" className="text-muted transition hover:text-ink">Refer &amp; earn</a>
+            )}
           </nav>
 
           {/* Signed in, the page is still browsable — so the header offers the
@@ -585,7 +592,7 @@ export function LandingPage() {
                     className="inline-flex items-center gap-2.5 rounded-md bg-green px-5 py-3 text-sm font-semibold text-paper transition hover:bg-green-hover"
                   >
                     <Icon name="android" size={20} />
-                    Download for Android
+                    {apps.android_direct ? 'Download the Android app' : 'Get it on Google Play'}
                   </a>
                 )}
                 {apps.ios_url && (
@@ -599,8 +606,16 @@ export function LandingPage() {
                 )}
               </div>
 
+              {/* Said plainly: it is not on the Play Store, so Android asks the
+                  member to allow installing it the first time. */}
+              {apps.android_url && apps.android_direct && (
+                <p className="mt-4 text-[13px] text-muted-2">
+                  Android: a direct download from this site, not yet on the
+                  Google Play Store. Your phone may ask you to allow the install.
+                </p>
+              )}
               {apps.note && (
-                <p className="mt-4 text-[13px] text-muted-2">{apps.note}</p>
+                <p className="mt-2 text-[13px] text-muted-2">{apps.note}</p>
               )}
             </div>
 
@@ -708,6 +723,9 @@ export function LandingPage() {
           )}
         </div>
       </section>
+
+      {/* ── Refer & earn ─────────────────────────────────────────── */}
+      {showReferral && referral && <ReferSection program={referral} />}
 
       {/* ── Closing call to action ───────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-5 py-20">
@@ -830,6 +848,75 @@ export function LandingPage() {
   )
 }
 
+
+/**
+ * Refer & earn, for people who will never run a cooperative themselves —
+ * accountants, consultants, retired officers, members of several societies.
+ *
+ * The figures are the program's own, so the page cannot promise more than a
+ * referral actually earns. It is plain that a free trial earns nothing: the
+ * offer is for bringing societies that go on to pay.
+ */
+function ReferSection({ program }: { program: ReferralProgram }) {
+  const percent = Number(program.commission_percent).toLocaleString('en-NG', { maximumFractionDigits: 2 })
+  const months = program.commission_months
+  const period = months === 12 ? 'a full year' : `${months} months`
+  const points = [
+    { icon: 'link', title: 'Share your link',
+      body: 'Sign up free and get a personal link to send to the societies you know.' },
+    { icon: 'payments', title: `Earn ${percent}% of what they pay`,
+      body: `A share of every subscription payment the society makes for ${period}, counted from its first paid invoice. The free first month earns nothing — you earn when they pay.` },
+    { icon: 'account_balance', title: 'Withdraw to your bank',
+      body: `Request a payout once you have ${money(program.minimum_payout, 'NGN')} or more. We pay by bank transfer.` },
+  ]
+  return (
+    <section id="refer" className="border-b border-line bg-card">
+      <div className="mx-auto max-w-6xl px-5 py-20">
+        <div className="grid items-start gap-10 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-deep">
+              Refer &amp; earn
+            </div>
+            <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">
+              Earn {percent}% for {period} from every cooperative you bring.
+            </h2>
+            <p className="mt-3 max-w-md leading-relaxed text-ink-soft">
+              Know societies that still run on paper? Accountants, consultants,
+              past officers and members of more than one society are well
+              placed to introduce us. It costs nothing to join.
+            </p>
+            <Link
+              to="/signup?as=refer"
+              className="mt-7 inline-flex items-center gap-2 rounded-md bg-green px-6 py-3 text-sm font-semibold text-paper transition hover:bg-green-hover"
+            >
+              Start referring
+              <Icon name="arrow_forward" size={18} />
+            </Link>
+            <p className="mt-3 text-xs text-muted-2">
+              You can't earn from a society you founded or hold office in.{' '}
+              <Link to="/terms" className="underline hover:text-ink">Program terms</Link>
+            </p>
+          </div>
+          <ol className="grid gap-4">
+            {points.map((p, i) => (
+              <li key={p.title} className="flex gap-4 rounded-[15px] border border-line bg-paper p-5">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-50 text-green">
+                  <Icon name={p.icon} size={20} />
+                </div>
+                <div>
+                  <h3 className="font-display text-[17px] font-semibold text-ink">
+                    <span className="mr-1.5 text-muted-2">{i + 1}.</span>{p.title}
+                  </h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{p.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </section>
+  )
+}
 
 /**
  * One plan, quoted for the chosen billing cycle.

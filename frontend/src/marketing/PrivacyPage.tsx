@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { usePublicBranding } from '@/api/public'
 
 /**
  * Public privacy notice at `/privacy`.
@@ -33,6 +34,10 @@ import { Link } from 'react-router-dom'
  * float while the landing page deliberately does not mention it.
  */
 export function PrivacyPage() {
+  // One contact address across the site: the one set in Platform Settings,
+  // which the homepage shows too.
+  const { data: branding } = usePublicBranding()
+  const email = branding?.support_email || 'info@mycooperativeos.com'
   return (
     <div className="min-h-screen bg-paper">
       <header className="border-b border-line">
@@ -74,8 +79,8 @@ export function PrivacyPage() {
             So for anything about your own records — a copy, a correction, a
             deletion — <strong>start with your society's officers</strong>, because they
             control them. For anything about the platform itself, contact us at{' '}
-            <a className="text-green hover:underline" href="mailto:info@mycooperativeos.com">
-              info@mycooperativeos.com
+            <a className="text-green hover:underline" href={`mailto:${email}`}>
+              {email}
             </a>
             .
           </p>
@@ -213,8 +218,8 @@ export function PrivacyPage() {
             object to particular uses, or ask for data to be deleted. Because your
             society controls the records, start with its officers; if you cannot
             resolve it there, contact us at{' '}
-            <a className="text-green hover:underline" href="mailto:info@mycooperativeos.com">
-              info@mycooperativeos.com
+            <a className="text-green hover:underline" href={`mailto:${email}`}>
+              {email}
             </a>
             . You may also complain to the Nigeria Data Protection Commission.
           </p>
@@ -244,9 +249,9 @@ export function PrivacyPage() {
               Email{' '}
               <a
                 className="text-green hover:underline"
-                href="mailto:info@mycooperativeos.com?subject=Account%20deletion%20request"
+                href={`mailto:${email}?subject=Account%20deletion%20request`}
               >
-                info@mycooperativeos.com
+                {email}
               </a>{' '}
               from the address on your account, with the subject
               "Account deletion request". We will verify you are the account
@@ -306,8 +311,8 @@ export function PrivacyPage() {
 
         <div className="mt-10 border-t border-line pt-6 text-[13px] text-muted">
           Startup Ripple ·{' '}
-          <a className="text-green hover:underline" href="mailto:info@mycooperativeos.com">
-            info@mycooperativeos.com
+          <a className="text-green hover:underline" href={`mailto:${email}`}>
+            {email}
           </a>
         </div>
       </main>

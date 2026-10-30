@@ -1116,6 +1116,8 @@ export interface SiteContent {
     note: string
     /** Store link, or the uploaded APK. null hides the Android button. */
     android_url: string | null
+    /** The Android link is a side-loaded APK, not a Play Store listing. */
+    android_direct?: boolean
     /** null hides the iOS button — useful while it is unreleased. */
     ios_url: string | null
     screenshot: string | null

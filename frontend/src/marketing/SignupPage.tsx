@@ -52,10 +52,12 @@ export function SignupPage() {
   // /join/<code> is a society's invite link: straight to the member form, with
   // the society already chosen.
   const { code } = useParams<{ code: string }>()
-  const [mode, setMode] = useState<Mode>(code ? 'member' : 'choose')
+  const [params] = useSearchParams()
+  // /signup?as=refer is the homepage's refer-and-earn button.
+  const [mode, setMode] = useState<Mode>(
+    code ? 'member' : params.get('as') === 'refer' ? 'refer' : 'choose')
   // A referrer's link (/signup?ref=CODE). Kept in the browser so the credit
   // survives a detour round the site before the society signs up.
-  const [params] = useSearchParams()
   const ref = params.get('ref')
   useEffect(() => rememberReferralCode(ref), [ref])
   const { data: branding } = usePublicBranding()

@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { useLegalDocument } from '@/api/public'
+import { useLegalDocument, usePublicBranding } from '@/api/public'
 import { PrivacyPage } from './PrivacyPage'
 import { LegalProse } from './LegalProse'
 import { longDate } from '@/lib/format'
@@ -20,6 +20,8 @@ export function LegalPage({ slug: fixedSlug }: { slug?: string }) {
   const params = useParams()
   const slug = fixedSlug ?? params.slug ?? ''
   const { data, isLoading, isError } = useLegalDocument(slug)
+  const { data: branding } = usePublicBranding()
+  const email = branding?.support_email || 'info@mycooperativeos.com'
 
   // No published document. For the privacy notice that is expected until legal
   // copy arrives, so serve the built-in one rather than an empty page.
@@ -30,7 +32,7 @@ export function LegalPage({ slug: fixedSlug }: { slug?: string }) {
         <p>
           This page has not been published. If you were expecting a policy here,
           please{' '}
-          <a className="text-green hover:underline" href="mailto:info@mycooperativeos.com">
+          <a className="text-green hover:underline" href={`mailto:${email}`}>
             contact us
           </a>
           .
