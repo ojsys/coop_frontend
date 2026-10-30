@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { ConsoleShell } from './ConsoleShell'
 import { DashboardPage } from './pages/DashboardPage'
 import { MembersPage } from './pages/MembersPage'
@@ -22,8 +22,20 @@ import { EmailPage } from './pages/EmailPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { GuidePage } from './pages/GuidePage'
 import { VerificationPage } from './pages/VerificationPage'
+import { LockedPage } from './RenewSubscription'
+import { OPEN_WHILE_LAPSED, useSubscriptionState } from './subscription'
 
 export function ConsoleRoutes() {
+  const { lapsed } = useSubscriptionState()
+  const { pathname } = useLocation()
+  const path = pathname.replace(/\/+$/, '') || '/console'
+  if (lapsed && !OPEN_WHILE_LAPSED.includes(path)) {
+    return (
+      <ConsoleShell>
+        <LockedPage />
+      </ConsoleShell>
+    )
+  }
   return (
     <ConsoleShell>
       <Routes>

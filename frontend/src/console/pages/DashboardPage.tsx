@@ -1,6 +1,8 @@
 import { useDashboard, useLoans, useWallet } from '@/api/hooks'
 import { WalletShortBanner } from '@/console/FundWalletPrompt'
 import { VerificationBanner } from '@/console/VerificationBanner'
+import { RenewPanel } from '@/console/RenewSubscription'
+import { useSubscriptionState } from '@/console/subscription'
 import { useAuth } from '@/auth/AuthContext'
 import { PageHeader } from '@/ui/PageHeader'
 import { StatTile } from '@/ui/StatTile'
@@ -26,6 +28,16 @@ export function DashboardPage() {
   const wallet = useWallet()
 
   const firstName = user?.full_name?.split(' ')[0] ?? 'there'
+  const { lapsed } = useSubscriptionState()
+
+  if (lapsed) {
+    return (
+      <div className="max-w-3xl">
+        <PageHeader title="Society Dashboard" subtitle={<span>Welcome back, {firstName}</span>} />
+        <RenewPanel />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -44,6 +56,7 @@ export function DashboardPage() {
         }
       />
 
+      <RenewPanel />
       <VerificationBanner />
 
       {wallet.data && (

@@ -140,7 +140,12 @@ export function InvoicePayPage() {
                 <Icon name="check_circle" size={18} fill />
                 <span>
                   This invoice is settled. Nothing further is needed — a receipt
-                  has gone to your cooperative's contact address.
+                  has gone to your cooperative's contact address.{' '}
+                  {/* A full load, so the console re-reads the subscription and
+                      unlocks. */}
+                  <a href="/console" className="font-semibold underline">
+                    Back to the console
+                  </a>
                 </span>
               </div>
             ) : (
@@ -161,8 +166,8 @@ export function InvoicePayPage() {
             )}
 
             <p className="mt-4 text-center text-xs text-muted-2">
-              Your cooperative keeps working while an invoice is outstanding.
-              If anything looks wrong, reply to the invoice email.
+              Paying renews your subscription straight away. If anything looks
+              wrong, reply to the invoice email.
             </p>
           </div>
         )}

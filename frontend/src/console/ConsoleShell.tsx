@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { usePendingJoinRequestCount } from '@/api/signup'
 import { usePendingDeletionCount } from '@/api/dataRights'
 import { num, shortDate } from '@/lib/format'
+import { OPEN_WHILE_LAPSED, useSubscriptionState } from './subscription'
 
 const NAV: NavItem[] = [
   { to: '/console', label: 'Dashboard', icon: 'dashboard', end: true },
@@ -51,12 +52,17 @@ function PlanCard() {
       <div className="text-[11px] font-semibold text-green-200">
         {plan?.name ? `PLAN · ${plan.name.toUpperCase()}` : 'PLAN'}
       </div>
-      {plan?.status === 'trial' && plan.renews_on && (
+      {plan?.lapsed && (
+        <div className="mt-0.5 text-[11px] font-semibold text-gold">
+          Subscription ended. Renew to unlock.
+        </div>
+      )}
+      {!plan?.lapsed && plan?.status === 'trial' && plan.renews_on && (
         <div className="mt-0.5 text-[11px] text-green-100">
           Free trial until {shortDate(plan.renews_on)}
         </div>
       )}
-      {plan?.grace_until && (
+      {!plan?.lapsed && plan?.grace_until && (
         <div className="mt-0.5 text-[11px] text-green-100">
           Every feature included until {shortDate(plan.grace_until)}
         </div>
@@ -97,7 +103,8 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
 
   // People waiting to be admitted are the one queue worth interrupting the nav
   // for: nothing else in here degrades by being left alone for a week.
-  const nav = NAV.map((item) =>
+  const { lapsed } = useSubscriptionState()
+  const nav = (lapsed ? NAV.filter((item) => OPEN_WHILE_LAPSED.includes(item.to)) : NAV).map((item) =>
     item.to === '/console/join-requests' && pending > 0
       ? { ...item, badge: pending }
       : item.to === '/console/deletion-requests' && deletions > 0

@@ -59,6 +59,22 @@ export interface MembershipPlan {
   cycle_amount?: string | null
   status?: string | null
   renews_on?: string | null
+  /** Past due, cancelled, or a trial that has ended unpaid: the console locks
+   *  down to renewing until it is paid. */
+  lapsed?: boolean
+  /** The invoice waiting to be paid, if any. */
+  open_invoice?: OpenInvoice | null
+}
+
+export interface OpenInvoice {
+  number: string
+  period_label: string
+  amount: string
+  currency: string
+  status: 'sent' | 'overdue'
+  due_at: string | null
+  /** Only for officers who can pay; opens /billing/pay/<token>. */
+  pay_token: string | null
 }
 
 /** A full member, or someone the society serves who has not joined. */

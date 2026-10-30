@@ -35,6 +35,7 @@ import { PlanFeatureNote } from '@/auth/PlanFeatureNote'
 import { apiErrorMessage } from '@/lib/apiError'
 import { LocationSelect, CoopTypeSelect } from '@/ui/StateLGASelect'
 import { naira, longDate } from '@/lib/format'
+import { RenewPanel } from '@/console/RenewSubscription'
 import type { Cooperative, Role } from '@/api/types'
 
 // Permission catalogue shown in the role editor (mirrors accounts.models.Role).
@@ -133,6 +134,7 @@ export function SettingsPage() {
         title="Settings"
         subtitle="Society profile, contribution types, payments, roles & security"
       />
+      <RenewPanel />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
