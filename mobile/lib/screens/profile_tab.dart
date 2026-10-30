@@ -9,6 +9,7 @@ import '../format.dart';
 import '../theme.dart';
 import 'password_sheets.dart';
 import 'legal_webview.dart';
+import 'refer_screen.dart';
 import '../widgets.dart';
 import 'member_scaffold.dart';
 
@@ -647,6 +648,16 @@ class _ProfileTabState extends State<ProfileTab> {
           padding: EdgeInsets.zero,
           child: Column(
             children: [
+              ListTile(
+                leading: const Icon(Icons.redeem_outlined,
+                    color: AppColors.muted),
+                title: const Text('Refer a cooperative & earn'),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.muted2),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => ReferScreen(api: widget.api))),
+              ),
+              const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.shield_outlined,
                     color: AppColors.muted),

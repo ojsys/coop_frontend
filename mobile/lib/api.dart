@@ -578,6 +578,39 @@ class Api {
         .toList();
   }
 
+  // ── Refer & earn (backend: referrals/) ──────────────────────────────────
+  /// The account's referral page, or null when referrals are not turned on.
+  Future<ReferrerDashboard?> referrer() async {
+    try {
+      return ReferrerDashboard.fromJson(await _get('/me/referrer/'));
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  Future<ReferralProgram> referralProgram() async =>
+      ReferralProgram.fromJson(await _get('/public/referral-program/'));
+
+  Future<ReferrerDashboard> becomeReferrer() async =>
+      ReferrerDashboard.fromJson(await _post('/me/referrer/', {}));
+
+  Future<ReferrerDashboard> saveReferrerBank({
+    required String bankName,
+    required String bankCode,
+    required String accountNo,
+    required String accountName,
+  }) async =>
+      ReferrerDashboard.fromJson(await _patch('/me/referrer/', {
+        'bank_name': bankName,
+        'bank_code': bankCode,
+        'account_no': accountNo,
+        'account_name': accountName,
+      }));
+
+  Future<void> requestReferralPayout(String amount) async =>
+      _post('/me/referrer/payouts/', {'amount': amount});
+
   Future<void> logout() async {
     _token = null;
     _cooperativeId = null;
@@ -1354,4 +1387,141 @@ class MyJoinRequest {
         status: j['status'] as String,
         decisionNote: j['decision_note'] as String? ?? '',
       );
+}
+
+
+// ── Refer & earn ───────────────────────────────────────────────────────────
+double _money(dynamic v) => double.tryParse('${v ?? 0}') ?? 0;
+
+class ReferralProgram {
+  const ReferralProgram({
+    required this.active,
+    required this.percent,
+    required this.months,
+    required this.minimumPayout,
+  });
+  final bool active;
+  final double percent;
+  final int months;
+  final double minimumPayout;
+
+  /// "10" or "7.5" — never "10.00".
+  String get percentText =>
+      percent == percent.roundToDouble() ? '${percent.round()}' : '$percent';
+
+  factory ReferralProgram.fromJson(Map<String, dynamic> j) => ReferralProgram(
+        active: j['active'] as bool? ?? false,
+        percent: _money(j['commission_percent']),
+        months: j['commission_months'] as int? ?? 0,
+        minimumPayout: _money(j['minimum_payout']),
+      );
+}
+
+class ReferralRow {
+  const ReferralRow({
+    required this.cooperativeName,
+    required this.place,
+    required this.firstPaidOn,
+    required this.windowEndsOn,
+    required this.earned,
+  });
+  final String cooperativeName;
+  final String place;
+  final String? firstPaidOn;
+  final String? windowEndsOn;
+  final double earned;
+
+  factory ReferralRow.fromJson(Map<String, dynamic> j) => ReferralRow(
+        cooperativeName: j['cooperative_name'] as String? ?? '',
+        place: j['cooperative_state'] as String? ?? '',
+        firstPaidOn: j['first_paid_on'] as String?,
+        windowEndsOn: j['window_ends_on'] as String?,
+        earned: _money(j['earned']),
+      );
+}
+
+class ReferralPayoutRow {
+  const ReferralPayoutRow({
+    required this.amount,
+    required this.status,
+    required this.statusDisplay,
+    required this.note,
+    required this.createdAt,
+  });
+  final double amount;
+  final String status; // requested | paid | rejected
+  final String statusDisplay;
+  final String note;
+  final String createdAt;
+
+  factory ReferralPayoutRow.fromJson(Map<String, dynamic> j) =>
+      ReferralPayoutRow(
+        amount: _money(j['amount']),
+        status: j['status'] as String? ?? '',
+        statusDisplay: j['status_display'] as String? ?? '',
+        note: j['note'] as String? ?? '',
+        createdAt: j['created_at'] as String? ?? '',
+      );
+}
+
+class ReferrerDashboard {
+  const ReferrerDashboard({
+    required this.code,
+    required this.link,
+    required this.suspended,
+    required this.program,
+    required this.earned,
+    required this.paid,
+    required this.requested,
+    required this.available,
+    required this.bankName,
+    required this.bankCode,
+    required this.accountNo,
+    required this.accountName,
+    required this.hasBankDetails,
+    required this.referrals,
+    required this.payouts,
+  });
+  final String code;
+  final String link;
+  final bool suspended;
+  final ReferralProgram program;
+  final double earned;
+  final double paid;
+  final double requested;
+  final double available;
+  final String bankName;
+  final String bankCode;
+  final String accountNo;
+  final String accountName;
+  final bool hasBankDetails;
+  final List<ReferralRow> referrals;
+  final List<ReferralPayoutRow> payouts;
+
+  factory ReferrerDashboard.fromJson(Map<String, dynamic> j) {
+    final totals = (j['totals'] as Map<String, dynamic>?) ?? const {};
+    final bank = (j['bank'] as Map<String, dynamic>?) ?? const {};
+    return ReferrerDashboard(
+      code: j['code'] as String? ?? '',
+      link: j['link'] as String? ?? '',
+      suspended: j['status'] == 'suspended',
+      program: ReferralProgram.fromJson(
+          (j['program'] as Map<String, dynamic>?) ?? const {}),
+      earned: _money(totals['earned']),
+      paid: _money(totals['paid']),
+      requested: _money(totals['requested']),
+      available: _money(totals['available']),
+      bankName: bank['bank_name'] as String? ?? '',
+      bankCode: bank['bank_code'] as String? ?? '',
+      accountNo: bank['account_no'] as String? ?? '',
+      accountName: bank['account_name'] as String? ?? '',
+      hasBankDetails: j['has_bank_details'] as bool? ?? false,
+      referrals: ((j['referrals'] as List?) ?? const [])
+          .map((r) => ReferralRow.fromJson(r as Map<String, dynamic>))
+          .toList(),
+      payouts: ((j['payouts'] as List?) ?? const [])
+          .map((p) => ReferralPayoutRow.fromJson(p as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 }
