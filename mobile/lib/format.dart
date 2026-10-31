@@ -30,3 +30,10 @@ String initials(String name) {
   if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
   return (parts.first[0] + parts.last[0]).toUpperCase();
 }
+
+/// A stored phone (E.164) as people write it: Nigerian numbers read as
+/// "0803 441 2290"; others are shown as stored, with their country code.
+String phone(String value) {
+  final m = RegExp(r'^\+234(\d{3})(\d{3})(\d{4})$').firstMatch(value.trim());
+  return m == null ? value.trim() : '0${m[1]} ${m[2]} ${m[3]}';
+}

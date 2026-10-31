@@ -195,7 +195,9 @@ class Api {
     return 'Request failed (${res.statusCode})';
   }
 
-  Future<CurrentUser> login(String email, String password) async {
+  /// [username] is the phone number or the email on the account; either signs
+  /// in, however the phone is written.
+  Future<CurrentUser> login(String username, String password) async {
     // Every failure used to be reported as "Invalid email or password",
     // including an unreachable server — which is exactly what a release build
     // pointed at localhost does. That hid the real fault behind a wrong answer.
@@ -204,7 +206,7 @@ class Api {
       res = await http.post(
         Uri.parse('$baseUrl/auth/token/'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': email, 'password': password}),
+        body: jsonEncode({'username': username, 'password': password}),
       );
     } on Exception {
       throw ApiException(
@@ -216,7 +218,8 @@ class Api {
     // deliberately vague: the server's wording would reveal whether the
     // address is registered.
     if (res.statusCode == 400 || res.statusCode == 401) {
-      throw ApiException('Invalid email or password', res.statusCode);
+      throw ApiException(
+          'Wrong phone number, email or password', res.statusCode);
     }
     if (res.statusCode == 429) {
       throw ApiException(
@@ -242,15 +245,17 @@ class Api {
     return user;
   }
 
-  /// Email a password-reset link. The answer is the same whether or not the
-  /// address is registered, so it cannot be used to find out who is a member.
-  Future<String> requestPasswordReset(String email) async {
+  /// Email a password-reset link, asked for by phone or email. The answer is
+  /// the same whether or not the account exists, so it cannot be used to find
+  /// out who is a member. Someone with no email is told to ask for an access
+  /// code instead.
+  Future<String> requestPasswordReset(String username) async {
     http.Response res;
     try {
       res = await http.post(
         Uri.parse('$baseUrl/auth/password-reset/'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email}),
+        body: jsonEncode({'username': username}),
       );
     } on Exception {
       throw ApiException(
@@ -445,23 +450,59 @@ class Api {
   }
 
   /// Someone without an account asks a society to admit them, as on the
-  /// website's signup page. An officer approves; we then email them a link to
-  /// choose a password, and they sign in here.
+  /// website's signup page, with a phone number, an email, or both. The
+  /// [password] they choose becomes theirs once an officer approves, and they
+  /// sign in here with their phone (or email) and that password.
   Future<String> requestToJoin({
     required int cooperativeId,
     required String fullName,
-    required String email,
     String phone = '',
+    String email = '',
+    String password = '',
     String message = '',
   }) async {
     final res = await _post('/public/join/', {
       'cooperative': cooperativeId,
       'full_name': fullName,
-      'email': email,
       'phone': phone,
+      'email': email,
+      if (password.isNotEmpty) 'password': password,
       'message': message,
     });
     return res['detail'] as String? ?? 'Your request has been sent.';
+  }
+
+  /// Choose a password with the one-time code an officer of the society gave
+  /// a member who has no email. They then sign in as usual.
+  Future<String> redeemAccessCode({
+    required String username,
+    required String code,
+    required String password,
+  }) async {
+    http.Response res;
+    try {
+      res = await http.post(
+        Uri.parse('$baseUrl/auth/access-code/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(
+            {'username': username, 'code': code, 'password': password}),
+      );
+    } on Exception {
+      throw ApiException(
+        'Could not reach the server. Check your connection and try again.',
+        0,
+      );
+    }
+    if (res.statusCode == 429) {
+      throw ApiException(
+        'Too many tries. Please wait a while and try again.',
+        429,
+      );
+    }
+    if (res.statusCode >= 400) {
+      throw ApiException(_detail(res), res.statusCode);
+    }
+    return _detail(res);
   }
 
   /// Requests still waiting, or recently declined.
@@ -743,7 +784,8 @@ class CurrentUser {
 
   factory CurrentUser.fromJson(Map<String, dynamic> j) => CurrentUser(
         fullName: j['full_name'] as String,
-        email: j['email'] as String,
+        // "" or absent for someone who signs in with only a phone.
+        email: j['email'] as String? ?? '',
         phone: j['phone'] as String? ?? '',
         isPlatformAdmin: j['is_platform_admin'] as bool? ?? false,
         memberships: ((j['memberships'] as List?) ?? [])

@@ -46,25 +46,38 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ikeja, Lagos'), findsOneWidget);
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Full name'), 'Musa Bello');
       await tester.tap(find.text('Send request'));
       await tester.pumpAndSettle();
-      expect(find.text('Enter your full name and email address.'),
+      // Phone or email: most members have only a phone.
+      expect(
+          find.text('Enter your phone number, or an email address if you '
+              'have no phone.'),
+          findsOneWidget);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Phone number'), '0803 441 2290');
+      await tester.tap(find.text('Send request'));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose a password of at least 8 characters.'),
           findsOneWidget);
       expect(posted, isEmpty);
 
       await tester.enterText(
-          find.widgetWithText(TextField, 'Full name'), 'Ada Obi');
-      await tester.enterText(
-          find.widgetWithText(TextField, 'Email'), 'ada@example.com');
+          find.widgetWithText(TextField, 'Choose a password'),
+          'maize-harvest-2026');
       await tester.tap(find.text('Send request'));
       await tester.pumpAndSettle();
     }, () => server);
 
+    // No email at all: the phone and password are enough.
     expect(posted.single, {
       'cooperative': 7,
-      'full_name': 'Ada Obi',
-      'email': 'ada@example.com',
-      'phone': '',
+      'full_name': 'Musa Bello',
+      'phone': '0803 441 2290',
+      'email': '',
+      'password': 'maize-harvest-2026',
       'message': '',
     });
     expect(find.text('Request sent'), findsOneWidget);

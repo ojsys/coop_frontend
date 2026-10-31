@@ -7,8 +7,10 @@ import 'legal_webview.dart';
 
 /// Joining a cooperative from the app, for someone with no account yet — the
 /// website's "Join a cooperative" signup. Find the society (or paste its
-/// invite link), say who you are, and an officer reviews the request. Once
-/// admitted, we email a link to choose a password, and they sign in here.
+/// invite link), say who you are and choose a password, and an officer reviews
+/// the request. Once admitted, they sign in here with their phone (or email)
+/// and that password. Most members have a phone and no email, so phone comes
+/// first and email is optional.
 class JoinScreen extends StatefulWidget {
   const JoinScreen({super.key, required this.api});
   final Api api;
@@ -23,7 +25,9 @@ class _JoinScreenState extends State<JoinScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
+  final _password = TextEditingController();
   final _message = TextEditingController();
+  bool _showPassword = false;
   Timer? _debounce;
   List<Society>? _results;
   bool _searching = false;
@@ -37,7 +41,8 @@ class _JoinScreenState extends State<JoinScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
-    for (final c in [_search, _invite, _name, _email, _phone, _message]) {
+    for (final c in [_search, _invite, _name, _email, _phone, _password,
+      _message]) {
       c.dispose();
     }
     super.dispose();
@@ -84,9 +89,23 @@ class _JoinScreenState extends State<JoinScreen> {
 
   Future<void> _send() async {
     final name = _name.text.trim();
+    final phone = _phone.text.trim();
     final email = _email.text.trim();
-    if (name.isEmpty || !email.contains('@')) {
-      setState(() => _error = 'Enter your full name and email address.');
+    if (name.isEmpty) {
+      setState(() => _error = 'Enter your full name.');
+      return;
+    }
+    if (phone.isEmpty && email.isEmpty) {
+      setState(() => _error =
+          'Enter your phone number, or an email address if you have no phone.');
+      return;
+    }
+    if (email.isNotEmpty && !email.contains('@')) {
+      setState(() => _error = 'That email address is not complete.');
+      return;
+    }
+    if (_password.text.length < 8) {
+      setState(() => _error = 'Choose a password of at least 8 characters.');
       return;
     }
     setState(() {
@@ -97,8 +116,9 @@ class _JoinScreenState extends State<JoinScreen> {
       await widget.api.requestToJoin(
         cooperativeId: _picked!.id,
         fullName: name,
+        phone: phone,
         email: email,
-        phone: _phone.text.trim(),
+        password: _password.text,
         message: _message.text.trim(),
       );
       if (mounted) setState(() => _sentTo = _picked!.name);
@@ -150,8 +170,35 @@ class _JoinScreenState extends State<JoinScreen> {
           const SizedBox(height: 20),
           _label('About you'),
           _field(_name, 'Full name', capitalize: true),
-          _field(_email, 'Email', keyboard: TextInputType.emailAddress),
-          _field(_phone, 'Phone (optional)', keyboard: TextInputType.phone),
+          _field(_phone, 'Phone number',
+              keyboard: TextInputType.phone,
+              hint: "0803 000 0000 · you'll sign in with this"),
+          _field(_email, 'Email (optional)',
+              keyboard: TextInputType.emailAddress),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+              controller: _password,
+              obscureText: !_showPassword,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                labelText: 'Choose a password',
+                helperText:
+                    'At least 8 characters. It works once an officer admits you.',
+                filled: true,
+                fillColor: AppColors.card,
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
+                  icon: Icon(_showPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility),
+                ),
+              ),
+            ),
+          ),
           _field(_message, 'Anything the officers should know? (optional)',
               hint: 'Your number on their register, who introduced you',
               lines: 3),
@@ -338,7 +385,7 @@ class _JoinScreenState extends State<JoinScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           const SizedBox(height: 24),
-          const Icon(Icons.mark_email_read_outlined,
+          const Icon(Icons.check_circle_outline,
               color: AppColors.green, size: 52),
           const SizedBox(height: 16),
           const Text('Request sent',
@@ -352,10 +399,13 @@ class _JoinScreenState extends State<JoinScreen> {
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 24),
-          for (final (i, step) in const [
+          for (final (i, step) in [
             'An officer checks your details against their member register.',
-            'If they admit you, we email you a link to choose your password.',
-            'Then come back here and sign in with your email and that password.',
+            'Once they admit you, sign in here with your '
+                '${_phone.text.trim().isNotEmpty ? 'phone number' : 'email'} '
+                'and the password you chose.',
+            "Forgot it? Your society's secretary can give you an access code "
+                'to choose a new one.',
           ].indexed)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -379,12 +429,6 @@ class _JoinScreenState extends State<JoinScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 4),
-          const Text(
-              "You'll never be sent a password itself — only a link to choose "
-              'one.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted2, fontSize: 12)),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),

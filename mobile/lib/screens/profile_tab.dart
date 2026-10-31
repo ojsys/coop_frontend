@@ -335,8 +335,8 @@ class _ProfileTabState extends State<ProfileTab> {
                   state.isPending
                       ? 'You asked on ${state.pendingSince!.substring(0, 10)}. '
                           'An officer will settle anything outstanding and '
-                          "complete it within 30 days; we'll email you when "
-                          "it's done. You can cancel until then."
+                          "complete it within 30 days, and you'll be told "
+                          "when it's done. You can cancel until then."
                       : 'Deleted: your sign-in, contact details, date of '
                           'birth, gender, address, occupation, next of kin, '
                           'bank details, photo and documents.\n\n'
@@ -426,7 +426,7 @@ class _ProfileTabState extends State<ProfileTab> {
           await _exportData();
         case 'request':
           await widget.api.requestDeletion(text);
-          _toast("Request sent to your cooperative. We'll email you.");
+          _toast('Request sent to your cooperative.');
         case 'cancel':
           await widget.api.cancelDeletion();
           _toast('Deletion request cancelled');
@@ -574,7 +574,7 @@ class _ProfileTabState extends State<ProfileTab> {
                     Text('${p.memberNo} · ${p.roleName ?? 'Member'}',
                         style: const TextStyle(
                             color: AppColors.muted2, fontSize: 12)),
-                    Text(p.phone.isNotEmpty ? p.phone : p.email,
+                    Text(p.phone.isNotEmpty ? phone(p.phone) : p.email,
                         style: const TextStyle(
                             color: AppColors.muted2, fontSize: 12)),
                   ],
@@ -863,7 +863,8 @@ class _EditKycSheet extends StatefulWidget {
 }
 
 class _EditKycSheetState extends State<_EditKycSheet> {
-  late final _phone = TextEditingController(text: widget.profile.phone);
+  late final _phone =
+      TextEditingController(text: phone(widget.profile.phone));
   late final _dob = TextEditingController(text: widget.profile.dateOfBirth ?? '');
   late final _occupation =
       TextEditingController(text: widget.profile.occupation);

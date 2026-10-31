@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
+import '../format.dart';
 import '../theme.dart';
 import 'home_tab.dart';
 import 'savings_tab.dart';
@@ -102,7 +103,7 @@ class _MemberScaffoldState extends State<MemberScaffold> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Signed in as ${s.user.email}, but this account is not a '
+                      'Signed in as ${s.user.email.isNotEmpty ? s.user.email : phone(s.user.phone)}, but this account is not a '
                       'member of any cooperative yet, so there is nothing to '
                       'show. Ask to join one, and an officer will admit you.',
                       textAlign: TextAlign.center,

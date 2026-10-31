@@ -16,7 +16,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // Previously prefilled with the demo member's credentials, which shipped in
   // the release build and invited a real user to sign in as someone fictional.
-  final _email = TextEditingController();
+  // A phone number or an email: either signs in.
+  final _username = TextEditingController();
   final _password = TextEditingController();
   bool _busy = false;
   String? _error;
@@ -27,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await widget.api.login(_email.text.trim(), _password.text);
+      await widget.api.login(_username.text.trim(), _password.text);
       widget.onSignedIn();
     } catch (e) {
       setState(() {
@@ -80,20 +81,34 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 1.15),
               ),
               const SizedBox(height: 28),
-              _field(_email, 'Email', false),
+              _field(_username, 'Phone number or email', false,
+                  keyboard: TextInputType.text),
               const SizedBox(height: 12),
               _field(_password, 'Password', true),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () => showForgotPassword(context, widget.api,
-                          email: _email.text.trim()),
-                  style: TextButton.styleFrom(
-                      foregroundColor: AppColors.gold),
-                  child: const Text('Forgot password?'),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // For members with no email: an officer of their society
+                  // gives them a code to choose a password.
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => showAccessCode(context, widget.api,
+                            username: _username.text.trim()),
+                    style: TextButton.styleFrom(
+                        foregroundColor: AppColors.gold),
+                    child: const Text('Have an access code?'),
+                  ),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => showForgotPassword(context, widget.api,
+                            username: _username.text.trim()),
+                    style: TextButton.styleFrom(
+                        foregroundColor: AppColors.gold),
+                    child: const Text('Forgot password?'),
+                  ),
+                ],
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
@@ -118,8 +133,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 12),
               // No account yet: ask a society to admit you, as on the
-              // website's signup page. Officers approve; we email a link to
-              // choose a password, and the member signs in above.
+              // website's signup page, choosing a password as you ask.
+              // Officers approve, and the member signs in above.
               OutlinedButton(
                 onPressed: _busy
                     ? null
@@ -147,10 +162,13 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label, bool obscure) {
+  Widget _field(TextEditingController c, String label, bool obscure,
+      {TextInputType? keyboard}) {
     return TextField(
       controller: c,
       obscureText: obscure,
+      keyboardType: keyboard,
+      autocorrect: !obscure && keyboard == null,
       style: const TextStyle(color: AppColors.ink),
       decoration: InputDecoration(
         hintText: label,
