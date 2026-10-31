@@ -6,6 +6,7 @@ import { Field } from '@/ui/Field'
 import { Button } from '@/ui/Button'
 import { LocationSelect, CoopTypeSelect } from '@/ui/StateLGASelect'
 import { apiErrorMessage } from '@/lib/apiError'
+import { phone } from '@/lib/format'
 import { usePublicBranding, usePublicSiteContent } from '@/api/public'
 import { useAuth } from '@/auth/AuthContext'
 import {
@@ -643,7 +644,9 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
   const results = useSocietySearch(query)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '', message: '' })
+  // Phone first: most members of a farmers' or traders' society have no
+  // email. Either one signs in, with the password chosen here.
+  const [form, setForm] = useState({ full_name: '', phone: '', email: '', password: '', message: '' })
   const set = (k: keyof typeof form, v: string) =>
     setForm((f) => ({ ...f, [k]: v }))
 
@@ -651,6 +654,10 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
     e.preventDefault()
     if (!society) return
     setError(null)
+    if (!signedIn && !form.phone.trim() && !form.email.trim()) {
+      setError('Give your phone number, or an email address if you have no phone.')
+      return
+    }
     try {
       if (signedIn) await joinAnother.mutateAsync({ cooperative: society.id, message: form.message })
       else await join.mutateAsync({ cooperative: society.id, ...form })
@@ -681,8 +688,8 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
         body="An officer of the cooperative will review your request."
         next={[
           'An officer checks your details against their member register.',
-          'If they admit you, we email you a link to set your own password.',
-          'You’ll never be sent a password itself — only a link to choose one.',
+          `Once they admit you, sign in with your ${form.phone.trim() ? 'phone number' : 'email'} and the password you chose.`,
+          'Forgot it? Your society’s secretary can give you an access code to choose a new one.',
         ]}
       />
     )
@@ -808,7 +815,7 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
               <div className="min-w-0">
                 <div className="truncate font-medium text-ink">Asking as {signedIn.full_name}</div>
                 <div className="truncate text-xs text-muted">
-                  {signedIn.email} · with the account you already have
+                  {signedIn.email || phone(signedIn.phone)} · with the account you already have
                 </div>
               </div>
             </div>
@@ -823,9 +830,19 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Email">
+            <Field label="Phone number" hint="You’ll sign in with this.">
               <input
-                required
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={form.phone}
+                className="input"
+                placeholder="0803 000 0000"
+                onChange={(e) => set('phone', e.target.value)}
+              />
+            </Field>
+            <Field label="Email" hint="Optional.">
+              <input
                 type="email"
                 value={form.email}
                 className="input"
@@ -833,15 +850,22 @@ function MemberJoin({ joinCode, onBack }: { joinCode?: string; onBack: () => voi
                 onChange={(e) => set('email', e.target.value)}
               />
             </Field>
-            <Field label="Phone" hint="Optional.">
-              <input
-                value={form.phone}
-                className="input"
-                placeholder="0803 000 0000"
-                onChange={(e) => set('phone', e.target.value)}
-              />
-            </Field>
           </div>
+
+          <Field
+            label="Choose a password"
+            hint="At least 8 characters. It works once an officer admits you."
+          >
+            <input
+              required
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={form.password}
+              className="input"
+              onChange={(e) => set('password', e.target.value)}
+            />
+          </Field>
           </>)}
 
           <Field

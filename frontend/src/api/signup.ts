@@ -35,11 +35,14 @@ export interface CooperativeApplication {
   referral_code?: string
 }
 
+/** A phone number, an email, or both. The password becomes theirs when an
+ *  officer admits them. */
 export interface JoinRequestInput {
   cooperative: number
   full_name: string
-  email: string
   phone?: string
+  email?: string
+  password?: string
   message?: string
 }
 
@@ -151,7 +154,9 @@ export function useJoinRequestDecision() {
   const approve = useMutation({
     // The member number is assigned by the server.
     mutationFn: async ({ id }: { id: number }) => {
-      const { data } = await api.post<{ detail: string; membership: number }>(
+      // needs_access_code: no email and no password chosen, so the officer
+      // gives them an access code to get in.
+      const { data } = await api.post<{ detail: string; membership: number; needs_access_code?: boolean }>(
         `/join-requests/${id}/approve/`,
         {},
       )

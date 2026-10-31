@@ -4,6 +4,7 @@ import { landingSurface } from './api/auth'
 import { RequireAuth, RequireSurface } from './auth/guards'
 import { LoginPage } from './auth/LoginPage'
 import { ForgotPasswordPage } from './auth/ForgotPasswordPage'
+import { AccessCodePage } from './auth/AccessCodePage'
 import { LandingPage } from './marketing/LandingPage'
 import { LegalPage } from './marketing/LegalPage'
 import { SignupPage } from './marketing/SignupPage'
@@ -50,6 +51,7 @@ export function App() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/join/:code" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/access-code" element={<AccessCodePage />} />
       {/* Account deletion without the app — the URL given to Google Play. */}
       <Route path="/account/delete" element={<AccountDeletePage />} />
       <Route path="/account/delete/confirm" element={<AccountDeleteConfirmPage />} />

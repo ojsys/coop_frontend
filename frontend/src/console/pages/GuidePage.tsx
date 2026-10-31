@@ -38,7 +38,7 @@ const SECTIONS: GuideSection[] = [
     id: 'members',
     title: 'Members',
     icon: 'group',
-    keywords: 'register add member import csv kyc documents photo member number share capital',
+    keywords: 'register add member import csv kyc documents photo member number share capital phone no email access code password sign in',
     body: (
       <>
         <p>
@@ -48,11 +48,19 @@ const SECTIONS: GuideSection[] = [
         </p>
         <Steps
           items={[
-            <><strong>Add one at a time</strong> with “Add member”. They are emailed a link to set their own password — you never choose or send a password for them.</>,
-            <><strong>Or import a CSV</strong> to bring a paper register across in bulk. Bulk import does <em>not</em> send welcome emails, so you can migrate quietly and invite people later.</>,
+            <><strong>Add one at a time</strong> with “Add person”, using a phone number, an email, or both. Either one signs them in. Someone with an email is sent a link to set their own password; you never choose or send a password for them.</>,
+            <><strong>No email?</strong> Most farmers and traders have only a phone. After adding them, give them an <strong>access code</strong>: eight digits, shown to you once, which they enter with their phone number in the app or on the sign-in page to choose a password. It works once, for 72 hours.</>,
+            <><strong>Or import a CSV</strong> to bring a paper register across in bulk. Each row needs a phone or an email. Bulk import does <em>not</em> send welcome emails, so you can migrate quietly and invite people later.</>,
             <><strong>Open a member</strong> to see their statement, savings, loans and documents in one place.</>,
           ]}
         />
+        <p>
+          A member who forgets their password and has no email asks you for a
+          new access code: open them, choose <strong>Edit</strong>, then{' '}
+          <strong>Issue access code</strong>. Members marked “No password yet”
+          have not signed in for the first time. Only the Chairperson can issue a
+          code for another officer.
+        </p>
         <Caution>
           Identity documents and dates of birth are regulated personal data
           under the NDPA. Upload only what your society genuinely needs, and
@@ -75,7 +83,7 @@ const SECTIONS: GuideSection[] = [
         </p>
         <Steps
           items={[
-            <><strong>Admit</strong> — they get the next member number automatically, and only then are their account and membership created. They receive an email inviting them to set a password.</>,
+            <><strong>Admit</strong> — they get the next member number automatically, and only then are their account and membership created. Applicants choose a password when they ask, so they can sign in with their phone straight away. Anyone who didn’t is emailed a link to set one, or, with no email, you give them an access code.</>,
             <><strong>Decline</strong> — no account is created, and you can record a private reason. They are free to apply again later.</>,
           ]}
         />

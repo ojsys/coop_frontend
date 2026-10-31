@@ -63,9 +63,9 @@ export function useReverseContribution() {
 }
 
 export interface CreateMemberInput {
-  // No member_no: the server assigns it.
+  // No member_no: the server assigns it. A phone, an email, or both.
   full_name: string
-  email: string
+  email?: string
   phone?: string
   role?: number | null
   share_capital?: string
@@ -107,6 +107,8 @@ export interface UpdateMemberInput {
   id: number
   full_name?: string
   phone?: string
+  /** Only fills a blank: an email already on the account is never replaced. */
+  email?: string
   role?: number | null
   status?: string
   share_capital?: string
@@ -131,6 +133,27 @@ export function useUpdateMember() {
       return data
     },
     onSuccess: invalidate,
+  })
+}
+
+export interface IssuedAccessCode {
+  /** Shown once: it is never stored and cannot be fetched again. */
+  code: string
+  expires_at: string
+  /** The phone (or email) the member types with the code. */
+  sign_in_with: string
+  detail: string
+}
+
+/** A one-time code a member with no email uses to choose a password. */
+export function useIssueAccessCode() {
+  return useMutation({
+    mutationFn: async (memberId: number) => {
+      const { data } = await api.post<IssuedAccessCode>(
+        `/members/${memberId}/access-code/`,
+      )
+      return data
+    },
   })
 }
 

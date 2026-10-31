@@ -15,7 +15,8 @@ interface AuthState {
   loading: boolean
   activeCooperativeId: number | null
   activeMembership: MembershipSummary | null
-  login: (email: string, password: string) => Promise<CurrentUser>
+  /** `username` is the phone number or email on the account. */
+  login: (username: string, password: string) => Promise<CurrentUser>
   logout: () => void
   setActiveCooperativeId: (id: number) => void
   refresh: () => Promise<void>
@@ -75,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function login(email: string, password: string) {
-    await apiLogin(email, password)
+  async function login(username: string, password: string) {
+    await apiLogin(username, password)
     const me = await loadUser()
     setLoading(false)
     return me

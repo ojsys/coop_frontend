@@ -7,6 +7,8 @@ import { Button } from '@/ui/Button'
 import { Field, Select } from '@/ui/Field'
 import { BankSelect } from '@/ui/BankSelect'
 import { apiErrorMessage } from '@/lib/apiError'
+import { phone } from '@/lib/format'
+import { AccessCodePanel } from './AccessCodePanel'
 import type { Member } from '@/api/types'
 
 /** Edit a member's details, role and status. Renders nothing when `member` is null. */
@@ -32,7 +34,9 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
     full_name: member.full_name,
-    phone: member.phone ?? '',
+    phone: phone(member.phone),
+    // Only fills a blank; an email already on the account is shown, not edited.
+    email: '',
     role: member.role != null ? String(member.role) : '',
     status: member.status,
     share_capital: member.share_capital,
@@ -63,6 +67,7 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
         id: member.id,
         full_name: form.full_name,
         phone: form.phone,
+        ...(!member.email && form.email.trim() ? { email: form.email.trim() } : {}),
         ...(isMember ? { role: form.role ? Number(form.role) : null, share_capital: form.share_capital } : {}),
         status: form.status,
         date_of_birth: form.date_of_birth || null,
@@ -92,10 +97,20 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
           <Field label="Member no." hint="Assigned automatically">
             <input value={member.member_no} readOnly disabled className="input font-mono" />
           </Field>
-          <Field label="Phone">
-            <input value={form.phone} onChange={(e) => set('phone', e.target.value)} className="input" />
+          <Field label="Phone" hint="They can sign in with it.">
+            <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} className="input" placeholder="0803 000 0000" />
           </Field>
         </div>
+        {member.email ? (
+          <Field label="Email" hint="Signs in too. Only they can change it.">
+            <input value={member.email} readOnly disabled className="input disabled:opacity-70" />
+          </Field>
+        ) : (
+          <Field label="Email" hint="Optional. Lets them reset a password by email.">
+            <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className="input" placeholder="None yet" />
+          </Field>
+        )}
+        <AccessCodePanel member={member} />
         <div className="grid grid-cols-2 gap-3">
           {/* Offices and shares are for members; a non-member's record keeps
               neither (the server refuses both). Convert them first. */}

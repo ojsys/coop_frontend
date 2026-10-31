@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { Icon } from './Icon'
 import { LogoMark } from './Logo'
 import { useAuth } from '@/auth/AuthContext'
-import { initials } from '@/lib/format'
+import { initials, phone } from '@/lib/format'
 
 export interface NavItem {
   to: string
@@ -77,7 +77,7 @@ export function SidebarShell({
                 <div className="absolute right-0 top-11 z-20 w-56 rounded-lg border border-line bg-card p-1.5 text-ink shadow-float">
                   <div className="px-2.5 py-2">
                     <div className="text-sm font-semibold text-ink">{user?.full_name}</div>
-                    <div className="text-xs text-muted">{user?.email}</div>
+                    <div className="text-xs text-muted">{user?.email || phone(user?.phone)}</div>
                   </div>
                   <div className="my-1 border-t border-line" />
                   {/* The way back out to the public site. Being signed in

@@ -19,6 +19,7 @@ import { Field } from '@/ui/Field'
 import { memberMatches } from '@/lib/members'
 import { MemberEditModal } from '../MemberEditModal'
 import { naira } from '@/lib/format'
+import { AccessCodePanel } from '../AccessCodePanel'
 import type { Member } from '@/api/types'
 
 const PAGE_SIZE = 10
@@ -66,6 +67,11 @@ export function MembersPage() {
               <VerifiedBadge via={m.verified_via} size={16} />
               {m.verification_status === 'awaiting' && <Badge tone="gold">To verify</Badge>}
               {m.kind === 'non_member' && <Badge tone="blue">Non-member</Badge>}
+              {m.has_password === false && !m.email && (
+                <span title="No email and no password yet. Give them an access code from Edit.">
+                  <Badge>No password yet</Badge>
+                </span>
+              )}
             </div>
             <div className="font-mono text-xs text-muted-2">{m.member_no}</div>
           </div>
@@ -204,7 +210,8 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
   // member_no is optional: left blank, the next number is assigned. Fill it
   // only to keep the numbers on an existing register.
-  const TEMPLATE = 'full_name,email,phone,share_capital,role_slug,member_no\nAda Nwosu,ada@example.com,08030000000,50000,member,\n'
+  // Each row needs a phone or an email; most farmers and traders have only a phone.
+  const TEMPLATE = 'full_name,phone,email,share_capital,role_slug,member_no\nAda Nwosu,08030000000,ada@example.com,50000,member,\nMusa Bello,08031111111,,10000,member,\n'
 
   function downloadTemplate() {
     const url = URL.createObjectURL(new Blob([TEMPLATE], { type: 'text/csv' }))
@@ -232,8 +239,9 @@ function ImportModal({ onClose }: { onClose: () => void }) {
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-lg border border-line bg-paper px-3.5 py-2.5 text-[13px]">
           <span className="text-muted">
-            Columns: full_name, email, phone, share_capital, role_slug. Member numbers are assigned
-            automatically; add a member_no column only to keep numbers from an existing register.
+            Columns: full_name, phone, email, share_capital, role_slug. Each row needs a phone or an
+            email. Member numbers are assigned automatically; add a member_no column only to keep
+            numbers from an existing register.
           </span>
           <button onClick={downloadTemplate} className="flex items-center gap-1 font-medium text-green hover:underline"><Icon name="download" size={15} /> Template</button>
         </div>
@@ -272,6 +280,10 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const create = useCreateMember()
   const toast = useToast()
+  // Someone added with no email gets no set-password link, so the officer is
+  // offered an access code for them straight away.
+  const [added, setAdded] = useState<Member | null>(null)
+  const close = () => { setAdded(null); onClose() }
   const [form, setForm] = useState({
     kind: 'member' as 'member' | 'non_member',
     full_name: '',
@@ -287,15 +299,38 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!form.phone.trim() && !form.email.trim()) {
+      toast('Give a phone number or an email', 'error')
+      return
+    }
     try {
       // A non-member holds no shares, whatever is left in the field.
-      await create.mutateAsync({ ...form, share_capital: nonMember ? '0' : form.share_capital, status: 'active' })
+      const member: Member = await create.mutateAsync({ ...form, share_capital: nonMember ? '0' : form.share_capital, status: 'active' })
       toast(nonMember ? 'Non-member added' : 'Member added')
-      onClose()
       setForm({ kind: 'member', full_name: '', email: '', phone: '', share_capital: '0' })
+      if (!member.email && !member.has_password) setAdded(member)
+      else onClose()
     } catch (err) {
       toast(apiErrorMessage(err, 'Could not add member'), 'error')
     }
+  }
+
+  if (added) {
+    return (
+      <Modal open={open} onClose={close} title={`${added.full_name} is added`} subtitle={added.member_no}>
+        <div className="space-y-3.5">
+          <p className="text-sm text-muted">
+            They have no email, so we can't send them a link to set a password.
+            Give them an access code: they use it with their phone number to
+            choose one.
+          </p>
+          <AccessCodePanel member={added} />
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" size="sm" onClick={close}>Done</Button>
+          </div>
+        </div>
+      </Modal>
+    )
   }
 
   return (
@@ -332,11 +367,11 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
           <input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} className="input" placeholder="Ada Nwosu" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Email">
-            <input required type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className="input" placeholder="ada@email.com" />
+          <Field label="Phone" hint="They sign in with it.">
+            <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} className="input" placeholder="0803 000 0000" />
           </Field>
-          <Field label="Phone">
-            <input value={form.phone} onChange={(e) => set('phone', e.target.value)} className="input" placeholder="0803…" />
+          <Field label="Email" hint="Optional.">
+            <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className="input" placeholder="ada@email.com" />
           </Field>
         </div>
         <div className="flex justify-end gap-2 pt-2">

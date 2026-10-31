@@ -18,7 +18,7 @@ import { Field, Select } from '@/ui/Field'
 import { BankSelect } from '@/ui/BankSelect'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
-import { timeAgo, longDate } from '@/lib/format'
+import { timeAgo, longDate, phone } from '@/lib/format'
 import type { Member } from '@/api/types'
 import { api } from '@/api/client'
 import { session } from '@/api/session'
@@ -97,7 +97,7 @@ export function ProfilePage() {
               <VerifiedBadge via={p?.verified_via} size={19} />
             </div>
             <div className="font-mono text-xs text-muted-2">
-              {activeMembership?.member_no} · {user?.phone || user?.email}
+              {activeMembership?.member_no} · {phone(user?.phone) || user?.email}
             </div>
           </div>
         </div>
@@ -309,7 +309,7 @@ function EditKycModal({ profile, onClose }: { profile: Member; onClose: () => vo
   const update = useUpdateMyProfile()
   const toast = useToast()
   const [form, setForm] = useState({
-    phone: profile.phone ?? '',
+    phone: phone(profile.phone),
     date_of_birth: profile.date_of_birth ?? '',
     gender: profile.gender ?? '',
     occupation: profile.occupation ?? '',

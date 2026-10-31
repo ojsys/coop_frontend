@@ -12,7 +12,7 @@ import { Icon } from '@/ui/Icon'
  * Why this is not `apiErrorMessage`: on a rejected sign-in the server's own
  * wording would reveal whether the address is registered, so the credential
  * case stays deliberately vague. Everything else is not a secret — and saying
- * "Invalid email or password" when the server is unreachable sends someone off
+ * "Wrong phone number, email or password" when the server is unreachable sends someone off
  * to reset a password that was never wrong.
  */
 function loginErrorMessage(error: unknown): string {
@@ -23,7 +23,7 @@ function loginErrorMessage(error: unknown): string {
   }
   // DRF's obtain_auth_token answers 400 (not 401) for bad credentials.
   if (response.status === 400 || response.status === 401) {
-    return 'Invalid email or password.'
+    return 'Wrong phone number, email or password.'
   }
   if (response.status === 429) {
     const retry = Number(
@@ -53,7 +53,8 @@ export function LoginPage() {
   // "African cooperatives" long after the landing page had stopped.
   const { data: cms } = usePublicSiteContent()
   const productName = branding?.name || 'CooperativeOS'
-  const [email, setEmail] = useState('')
+  // A phone number or an email: either signs in.
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -63,7 +64,7 @@ export function LoginPage() {
     setError(null)
     setBusy(true)
     try {
-      const user = await login(email, password)
+      const user = await login(username, password)
       navigate(`/${landingSurface(user)}`, { replace: true })
     } catch (err) {
       setError(loginErrorMessage(err))
@@ -132,15 +133,19 @@ export function LoginPage() {
 
           <form onSubmit={submit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-ink-soft">Email</span>
+              <span className="mb-1.5 block text-sm font-medium text-ink-soft">
+                Phone number or email
+              </span>
               <input
-                type="email"
+                type="text"
                 autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full rounded-md border border-line bg-card px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-green focus:ring-2 focus:ring-green/15"
-                placeholder="you@yourcoop.coop"
+                placeholder="0803 000 0000 or you@example.com"
               />
             </label>
             <label className="block">
@@ -181,6 +186,12 @@ export function LoginPage() {
               Back to site
             </Link>
           </div>
+          <p className="mt-3 text-sm text-muted">
+            Given a code by your society?{' '}
+            <Link to="/access-code" className="font-medium text-green hover:underline">
+              Use an access code
+            </Link>
+          </p>
 
           <p className="mt-6 border-t border-line pt-5 text-sm text-muted">
             New here?{' '}

@@ -1,7 +1,7 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { Icon } from '@/ui/Icon'
-import { naira } from '@/lib/format'
+import { naira, phone } from '@/lib/format'
 
 // A local stand-in for the Paystack hosted checkout, used only when no live key
 // is configured (`payment_simulated`). It reproduces the real flow's shape — a
@@ -33,7 +33,7 @@ export function MockCheckoutPage() {
 
         <div className="px-5 py-6">
           <div className="text-center">
-            <div className="text-[13px] text-muted">{user?.email}</div>
+            <div className="text-[13px] text-muted">{user?.email || phone(user?.phone)}</div>
             <div className="mt-1 text-[13px] text-muted">
               Pay {activeMembership?.cooperative_name}
             </div>

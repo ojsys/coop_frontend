@@ -2,10 +2,11 @@ import { api } from './client'
 import { session } from './session'
 import type { CurrentUser } from './types'
 
-export async function login(email: string, password: string): Promise<string> {
-  // DRF obtain_auth_token expects `username` — our USERNAME_FIELD is email.
+/** `username` is the phone number or the email on the account; either signs
+ *  in, however the phone is written. */
+export async function login(username: string, password: string): Promise<string> {
   const { data } = await api.post<{ token: string }>('/auth/token/', {
-    username: email,
+    username,
     password,
   })
   session.setToken(data.token)
@@ -21,12 +22,27 @@ export function logout() {
   session.clear()
 }
 
-/** Ask for a reset link. The reply is deliberately identical whether or not
- *  the address is registered, so it must not be treated as confirmation. */
-export async function requestPasswordReset(email: string): Promise<string> {
+/** Ask for a reset link, by phone or email. The reply is deliberately
+ *  identical whether or not the account exists, so it must not be treated as
+ *  confirmation. Someone with no email is told to ask for an access code. */
+export async function requestPasswordReset(username: string): Promise<string> {
   const { data } = await api.post<{ detail: string }>(
     '/auth/password-reset/',
-    { email },
+    { username },
+  )
+  return data.detail
+}
+
+/** Choose a password with the one-time code an officer of the society gave
+ *  a member who has no email. */
+export async function redeemAccessCode(input: {
+  username: string
+  code: string
+  password: string
+}): Promise<string> {
+  const { data } = await api.post<{ detail: string }>(
+    '/auth/access-code/',
+    input,
   )
   return data.detail
 }

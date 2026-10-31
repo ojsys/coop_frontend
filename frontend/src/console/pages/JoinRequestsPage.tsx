@@ -8,8 +8,9 @@ import { Field } from '@/ui/Field'
 import { QueryState } from '@/ui/QueryState'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
-import { dateTime } from '@/lib/format'
+import { dateTime, phone } from '@/lib/format'
 import { useAuth } from '@/auth/AuthContext'
+import { AccessCodePanel } from '../AccessCodePanel'
 import { useCooperative } from '@/api/hooks'
 import { useUpdateCooperative } from '@/api/mutations'
 import {
@@ -82,8 +83,7 @@ export function JoinRequestsPage() {
                       )}
                     </div>
                     <div className="mt-0.5 text-[13px] text-muted">
-                      {r.email}
-                      {r.phone && <span className="text-muted-2"> · {r.phone}</span>}
+                      {[phone(r.phone), r.email].filter(Boolean).join(' · ')}
                     </div>
                     {r.message && (
                       <p className="mt-2 rounded-md bg-sand px-3 py-2 text-[13px] leading-relaxed text-ink-soft">
@@ -140,18 +140,40 @@ function ApproveModal({
   const { approve } = useJoinRequestDecision()
   const toast = useToast()
   const [error, setError] = useState<string | null>(null)
+  // Admitted with no email and no password: they need an access code.
+  const [needsCode, setNeedsCode] = useState<number | null>(null)
+  const close = () => { setNeedsCode(null); onClose() }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!request) return
     setError(null)
     try {
-      await approve.mutateAsync({ id: request.id })
+      const res = await approve.mutateAsync({ id: request.id })
       toast(`${request.full_name} has been admitted`)
-      onClose()
+      if (res.needs_access_code) setNeedsCode(res.membership)
+      else onClose()
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not admit this member.'))
     }
+  }
+
+  if (request && needsCode != null) {
+    return (
+      <Modal open onClose={close} title={`${request.full_name} is admitted`}>
+        <div className="space-y-3.5">
+          <p className="text-sm leading-relaxed text-muted">
+            They have no email and didn't choose a password when they asked to
+            join. Give them an access code: they use it with their phone number
+            to choose one.
+          </p>
+          <AccessCodePanel member={{ id: needsCode, full_name: request.full_name, email: '', has_password: false }} />
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" size="sm" onClick={close}>Done</Button>
+          </div>
+        </div>
+      </Modal>
+    )
   }
 
   return (
@@ -164,8 +186,10 @@ function ApproveModal({
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm leading-relaxed text-muted">
           {request?.has_account
-            ? 'They already have a CooperativeOS account. Admitting them adds your society to it, and we email them to say they can switch to it.'
-            : 'This creates their account and emails them a link to set their own password. We never send a password itself.'}
+            ? 'They already have a CooperativeOS account. Admitting them adds your society to it, and they can switch to it when they sign in.'
+            : request?.email
+              ? 'This creates their account. If they didn’t choose a password when they asked, we email them a link to set one.'
+              : 'This creates their account. They sign in with their phone number and the password they chose; if they didn’t choose one, you’ll get an access code to give them.'}
         </p>
 
         <p className="text-sm leading-relaxed text-muted">

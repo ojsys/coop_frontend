@@ -125,3 +125,11 @@ export function initials(name: string | null | undefined): string {
 export function memberCap(cap: number | null | undefined): string {
   return cap ? num(cap) : 'No limit'
 }
+
+/** A stored phone (E.164) as people write it: Nigerian numbers read as
+ *  "0803 441 2290"; others are shown as stored, with their country code. */
+export function phone(value: string | null | undefined): string {
+  const v = (value ?? '').trim()
+  const ng = /^\+234(\d{3})(\d{3})(\d{4})$/.exec(v)
+  return ng ? `0${ng[1]} ${ng[2]} ${ng[3]}` : v
+}

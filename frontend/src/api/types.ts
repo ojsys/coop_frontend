@@ -83,6 +83,7 @@ export type MemberKind = 'member' | 'non_member'
 export interface CurrentUser {
   id: number
   full_name: string
+  /** "" for someone who signs in with only a phone. */
   email: string
   /** Confirmed by following an emailed link. Absent on older servers. */
   email_verified?: boolean
@@ -141,6 +142,9 @@ export interface Member {
   verification_withdrawn: boolean
   verified_by_name: string | null
   verified_at: string | null
+  /** False until they have chosen a password. Someone with no email then
+   *  needs an access code from an officer. Absent on older servers. */
+  has_password?: boolean
 }
 
 export interface ProfileStep {

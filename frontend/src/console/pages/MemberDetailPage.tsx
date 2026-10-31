@@ -18,7 +18,7 @@ import { Modal } from '@/ui/Modal'
 import { Field, Select } from '@/ui/Field'
 import { useToast } from '@/ui/toast'
 import { apiErrorMessage } from '@/lib/apiError'
-import { naira, longDate, lineAmount, signedNaira } from '@/lib/format'
+import { naira, longDate, lineAmount, signedNaira, phone } from '@/lib/format'
 import type { Member, StatementLine, Withdrawal } from '@/api/types'
 
 export function MemberDetailPage() {
@@ -96,8 +96,8 @@ export function MemberDetailPage() {
                 </div>
                 <div className="mt-4 space-y-2.5 text-sm">
                   <Row icon="badge" label={member.kind === 'non_member' ? 'Non-member — no vote, shares or dividends' : (member.role_name ?? 'Member')} />
-                  <Row icon="call" label={member.phone || '—'} />
-                  <Row icon="mail" label={member.email} />
+                  <Row icon="call" label={phone(member.phone) || '—'} />
+                  <Row icon="mail" label={member.email || 'No email'} />
                   <Row icon="event" label={member.joined_at ? `Joined ${longDate(member.joined_at)}` : 'Join date not set'} />
                 </div>
                 <div className="mt-4 flex gap-2">
