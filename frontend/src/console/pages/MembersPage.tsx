@@ -202,7 +202,9 @@ function ImportModal({ onClose }: { onClose: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
 
-  const TEMPLATE = 'member_no,full_name,email,phone,share_capital,role_slug\nIMC-1001,Ada Nwosu,ada@example.com,08030000000,50000,member\n'
+  // member_no is optional: left blank, the next number is assigned. Fill it
+  // only to keep the numbers on an existing register.
+  const TEMPLATE = 'full_name,email,phone,share_capital,role_slug,member_no\nAda Nwosu,ada@example.com,08030000000,50000,member,\n'
 
   function downloadTemplate() {
     const url = URL.createObjectURL(new Blob([TEMPLATE], { type: 'text/csv' }))
@@ -229,7 +231,10 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     <Modal open onClose={onClose} width={560} title="Import members" subtitle="Bulk-add members from a CSV file">
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-lg border border-line bg-paper px-3.5 py-2.5 text-[13px]">
-          <span className="text-muted">Columns: member_no, full_name, email, phone, share_capital, role_slug</span>
+          <span className="text-muted">
+            Columns: full_name, email, phone, share_capital, role_slug. Member numbers are assigned
+            automatically; add a member_no column only to keep numbers from an existing register.
+          </span>
           <button onClick={downloadTemplate} className="flex items-center gap-1 font-medium text-green hover:underline"><Icon name="download" size={15} /> Template</button>
         </div>
         <form onSubmit={submit} className="space-y-3">
@@ -269,7 +274,6 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
   const toast = useToast()
   const [form, setForm] = useState({
     kind: 'member' as 'member' | 'non_member',
-    member_no: '',
     full_name: '',
     email: '',
     phone: '',
@@ -288,7 +292,7 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
       await create.mutateAsync({ ...form, share_capital: nonMember ? '0' : form.share_capital, status: 'active' })
       toast(nonMember ? 'Non-member added' : 'Member added')
       onClose()
-      setForm({ kind: 'member', member_no: '', full_name: '', email: '', phone: '', share_capital: '0' })
+      setForm({ kind: 'member', full_name: '', email: '', phone: '', share_capital: '0' })
     } catch (err) {
       toast(apiErrorMessage(err, 'Could not add member'), 'error')
     }
@@ -319,16 +323,11 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
             receive no dividends. You can convert them to a member later.
           </p>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={nonMember ? 'Reference no.' : 'Member no.'}>
-            <input required value={form.member_no} onChange={(e) => set('member_no', e.target.value)} className="input" placeholder={nonMember ? 'NM-0123' : 'IMC-0123'} />
+        {!nonMember && (
+          <Field label="Share capital (₦)">
+            <input value={form.share_capital} onChange={(e) => set('share_capital', e.target.value)} className="input" inputMode="decimal" />
           </Field>
-          {!nonMember && (
-            <Field label="Share capital (₦)">
-              <input value={form.share_capital} onChange={(e) => set('share_capital', e.target.value)} className="input" inputMode="decimal" />
-            </Field>
-          )}
-        </div>
+        )}
         <Field label="Full name">
           <input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} className="input" placeholder="Ada Nwosu" />
         </Field>

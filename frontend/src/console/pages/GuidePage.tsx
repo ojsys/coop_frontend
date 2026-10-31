@@ -43,7 +43,8 @@ const SECTIONS: GuideSection[] = [
       <>
         <p>
           Your register. Each member has a member number unique to your society,
-          a role, share capital, and optionally a photo and KYC documents.
+          assigned automatically in sequence when they are added, plus a role,
+          share capital, and optionally a photo and KYC documents.
         </p>
         <Steps
           items={[
@@ -74,7 +75,7 @@ const SECTIONS: GuideSection[] = [
         </p>
         <Steps
           items={[
-            <><strong>Admit</strong> — you give them a member number, and only then are their account and membership created. They receive an email inviting them to set a password.</>,
+            <><strong>Admit</strong> — they get the next member number automatically, and only then are their account and membership created. They receive an email inviting them to set a password.</>,
             <><strong>Decline</strong> — no account is created, and you can record a private reason. They are free to apply again later.</>,
           ]}
         />

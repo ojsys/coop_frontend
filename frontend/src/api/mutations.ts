@@ -63,7 +63,7 @@ export function useReverseContribution() {
 }
 
 export interface CreateMemberInput {
-  member_no: string
+  // No member_no: the server assigns it.
   full_name: string
   email: string
   phone?: string
@@ -110,7 +110,6 @@ export interface UpdateMemberInput {
   role?: number | null
   status?: string
   share_capital?: string
-  member_no?: string
   date_of_birth?: string | null
   gender?: string
   address?: string

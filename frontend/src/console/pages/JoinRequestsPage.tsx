@@ -139,7 +139,6 @@ function ApproveModal({
 }) {
   const { approve } = useJoinRequestDecision()
   const toast = useToast()
-  const [memberNo, setMemberNo] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
@@ -147,9 +146,8 @@ function ApproveModal({
     if (!request) return
     setError(null)
     try {
-      await approve.mutateAsync({ id: request.id, member_no: memberNo.trim() })
+      await approve.mutateAsync({ id: request.id })
       toast(`${request.full_name} has been admitted`)
-      setMemberNo('')
       onClose()
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not admit this member.'))
@@ -170,10 +168,9 @@ function ApproveModal({
             : 'This creates their account and emails them a link to set their own password. We never send a password itself.'}
         </p>
 
-        <Field label="Member number" hint="Must be unique within your society.">
-          <input required autoFocus value={memberNo} className={inputClass}
-            onChange={(e) => setMemberNo(e.target.value)} placeholder="IMC-0848" />
-        </Field>
+        <p className="text-sm leading-relaxed text-muted">
+          Their member number is assigned automatically, next in your society’s sequence.
+        </p>
 
         {error && (
           <div className="flex items-start gap-2 rounded-md bg-danger-50 px-3 py-2 text-sm text-danger">

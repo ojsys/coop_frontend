@@ -149,10 +149,11 @@ export function useJoinRequestDecision() {
   }
 
   const approve = useMutation({
-    mutationFn: async ({ id, member_no }: { id: number; member_no: string }) => {
+    // The member number is assigned by the server.
+    mutationFn: async ({ id }: { id: number }) => {
       const { data } = await api.post<{ detail: string; membership: number }>(
         `/join-requests/${id}/approve/`,
-        { member_no },
+        {},
       )
       return data
     },

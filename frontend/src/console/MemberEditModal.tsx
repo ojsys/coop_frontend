@@ -33,7 +33,6 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
   const [form, setForm] = useState({
     full_name: member.full_name,
     phone: member.phone ?? '',
-    member_no: member.member_no,
     role: member.role != null ? String(member.role) : '',
     status: member.status,
     share_capital: member.share_capital,
@@ -64,7 +63,6 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
         id: member.id,
         full_name: form.full_name,
         phone: form.phone,
-        member_no: form.member_no,
         ...(isMember ? { role: form.role ? Number(form.role) : null, share_capital: form.share_capital } : {}),
         status: form.status,
         date_of_birth: form.date_of_birth || null,
@@ -91,8 +89,8 @@ function MemberEditForm({ member, onClose }: { member: Member; onClose: () => vo
           <input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} className="input" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Member no.">
-            <input required value={form.member_no} onChange={(e) => set('member_no', e.target.value)} className="input" />
+          <Field label="Member no." hint="Assigned automatically">
+            <input value={member.member_no} readOnly disabled className="input font-mono" />
           </Field>
           <Field label="Phone">
             <input value={form.phone} onChange={(e) => set('phone', e.target.value)} className="input" />
