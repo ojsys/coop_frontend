@@ -38,7 +38,7 @@ const SECTIONS: GuideSection[] = [
     id: 'members',
     title: 'Members',
     icon: 'group',
-    keywords: 'register add member import csv kyc documents photo member number share capital phone no email access code password sign in',
+    keywords: 'register add member import csv kyc documents photo member number share capital phone no email access code password sign in sms text',
     body: (
       <>
         <p>
@@ -49,15 +49,17 @@ const SECTIONS: GuideSection[] = [
         <Steps
           items={[
             <><strong>Add one at a time</strong> with “Add person”, using a phone number, an email, or both. Either one signs them in. Someone with an email is sent a link to set their own password; you never choose or send a password for them.</>,
-            <><strong>No email?</strong> Most farmers and traders have only a phone. After adding them, give them an <strong>access code</strong>: eight digits, shown to you once, which they enter with their phone number in the app or on the sign-in page to choose a password. It works once, for 72 hours.</>,
+            <><strong>No email?</strong> Most farmers and traders have only a phone. After adding them, give them an <strong>access code</strong>: eight digits, shown to you once, which they enter with their phone number in the app or on the sign-in page to choose a password. It works once, for 72 hours. When text messages are switched on, the code is also texted to their phone.</>,
             <><strong>Or import a CSV</strong> to bring a paper register across in bulk. Each row needs a phone or an email. Bulk import does <em>not</em> send welcome emails, so you can migrate quietly and invite people later.</>,
             <><strong>Open a member</strong> to see their statement, savings, loans and documents in one place.</>,
           ]}
         />
         <p>
-          A member who forgets their password and has no email asks you for a
-          new access code: open them, choose <strong>Edit</strong>, then{' '}
-          <strong>Issue access code</strong>. Members marked “No password yet”
+          A member who forgets their password can choose{' '}
+          <strong>Forgot password</strong> and enter their phone number: we
+          text them a code that works for 30 minutes. If no text arrives, give
+          them a new access code yourself: open them, choose{' '}
+          <strong>Edit</strong>, then <strong>Issue access code</strong>. Members marked “No password yet”
           have not signed in for the first time. Only the Chairperson can issue a
           code for another officer.
         </p>

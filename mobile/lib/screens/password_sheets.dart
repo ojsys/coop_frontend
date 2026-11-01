@@ -16,16 +16,17 @@ Future<void> showForgotPassword(BuildContext context, Api api,
     );
 
 /// Opens [AccessCodeSheet], prefilled with what was typed on the sign-in
-/// screen.
+/// screen. [texted] when "Forgot password" has just texted a code.
 Future<void> showAccessCode(BuildContext context, Api api,
-        {String username = ''}) =>
+        {String username = '', bool texted = false}) =>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-      builder: (_) => AccessCodeSheet(api: api, initialUsername: username),
+      builder: (_) => AccessCodeSheet(
+          api: api, initialUsername: username, texted: texted),
     );
 
 /// Opens [ChangePasswordSheet]. Resolves to true once the password changed.
@@ -39,10 +40,12 @@ Future<bool?> showChangePassword(BuildContext context, Api api) =>
       builder: (_) => ChangePasswordSheet(api: api),
     );
 
-/// "Forgot password?" from the sign-in screen: emails the same reset link the
-/// website sends. The link opens the website, where the new password is set;
-/// the member then signs in here with it. Someone with only a phone gets no
-/// email, and is pointed to an access code from their society instead.
+/// "Forgot password?" from the sign-in screen. A phone number gets a code by
+/// text when the server has SMS on, and the code sheet opens next. Otherwise
+/// it emails the same reset link the website sends; the link opens the
+/// website, where the new password is set, and the member then signs in here
+/// with it. Someone with only a phone and no SMS is pointed to an access code
+/// from their society.
 class ForgotPasswordSheet extends StatefulWidget {
   const ForgotPasswordSheet(
       {super.key, required this.api, this.initialUsername = ''});
@@ -70,8 +73,13 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
       _error = null;
     });
     try {
-      final detail = await widget.api.requestPasswordReset(username);
-      if (mounted) setState(() => _sent = detail);
+      final reply = await widget.api.requestPasswordReset(username);
+      if (!mounted) return;
+      if (reply.textedCode) {
+        _openAccessCode(texted: true);
+        return;
+      }
+      setState(() => _sent = reply.detail);
     } catch (e) {
       if (mounted) {
         setState(() => _error =
@@ -80,6 +88,15 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _openAccessCode({bool texted = false}) {
+    // This sheet's context is gone once it closes; open the next one from
+    // the navigator's, which stays mounted.
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    showAccessCode(navigator.context, widget.api,
+        username: _username.text.trim(), texted: texted);
   }
 
   @override
@@ -102,14 +119,7 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
               ),
               const SizedBox(height: 8),
               OutlinedButton(
-                onPressed: () {
-                  // This sheet's context is gone once it closes; open the
-                  // next one from the navigator's, which stays mounted.
-                  final navigator = Navigator.of(context);
-                  navigator.pop();
-                  showAccessCode(navigator.context, widget.api,
-                      username: _username.text.trim());
-                },
+                onPressed: _openAccessCode,
                 style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48)),
                 child: const Text('I have an access code'),
@@ -117,10 +127,9 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
             ]
           : [
               const Text(
-                'Enter the phone number or email you sign in with. If your '
-                "account has an email, we'll send a link to choose a new "
-                'password.\n\nSigned up with only a phone? Ask your '
-                "society's secretary for an access code.",
+                "Enter the phone number or email you sign in with. We'll "
+                'text a code to your phone, or email a link to choose a new '
+                'password.',
                 style: TextStyle(color: AppColors.inkSoft, fontSize: 14),
               ),
               const SizedBox(height: 16),
@@ -136,20 +145,29 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
               if (_error != null) _ErrorText(_error!),
               const SizedBox(height: 16),
               _SubmitButton(
-                  busy: _busy, label: 'Send reset link', onPressed: _submit),
+                  busy: _busy, label: 'Continue', onPressed: _submit),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: _busy ? null : _openAccessCode,
+                child: const Text('I already have an access code'),
+              ),
             ],
     );
   }
 }
 
-/// Choose a password with an access code: for members with no email. An
-/// officer of their society issues the eight-digit code from their member
-/// record; it works once, for 72 hours.
+/// Choose a password with an access code: for members with no email. The
+/// eight-digit code comes by text from "Forgot password" (30 minutes), or
+/// from an officer of their society (72 hours). Either works once.
 class AccessCodeSheet extends StatefulWidget {
   const AccessCodeSheet(
-      {super.key, required this.api, this.initialUsername = ''});
+      {super.key,
+      required this.api,
+      this.initialUsername = '',
+      this.texted = false});
   final Api api;
   final String initialUsername;
+  final bool texted;
 
   @override
   State<AccessCodeSheet> createState() => _AccessCodeSheetState();
@@ -162,8 +180,36 @@ class _AccessCodeSheetState extends State<AccessCodeSheet> {
   final _confirm = TextEditingController();
   bool _show = false;
   bool _busy = false;
+  bool _texting = false;
   String? _error;
   String? _done;
+  late String? _notice = widget.texted
+      ? "If that number has an account, we've texted it a code. It works "
+          'for 30 minutes.'
+      : null;
+
+  Future<void> _textMeACode() async {
+    final username = _username.text.trim();
+    if (username.isEmpty) {
+      setState(() => _error = 'Enter your phone number first.');
+      return;
+    }
+    setState(() {
+      _texting = true;
+      _error = null;
+    });
+    try {
+      final reply = await widget.api.requestPasswordReset(username);
+      if (mounted) setState(() => _notice = reply.detail);
+    } catch (e) {
+      if (mounted) {
+        setState(() =>
+            _error = e is ApiException ? e.message : 'Could not send a code.');
+      }
+    } finally {
+      if (mounted) setState(() => _texting = false);
+    }
+  }
 
   Future<void> _submit() async {
     if (_username.text.trim().isEmpty) {
@@ -223,10 +269,33 @@ class _AccessCodeSheetState extends State<AccessCodeSheet> {
             ]
           : [
               const Text(
-                "Your society's secretary gives you an 8-digit code. Enter it "
-                'with your phone number to choose your password.',
+                "Enter the 8-digit code we texted you, or the one your "
+                "society's secretary gave you, with your phone number to "
+                'choose your password.',
                 style: TextStyle(color: AppColors.inkSoft, fontSize: 14),
               ),
+              if (_notice != null)
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.sms_outlined,
+                          size: 18, color: AppColors.green),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_notice!,
+                            style: const TextStyle(
+                                color: AppColors.inkSoft, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -254,6 +323,17 @@ class _AccessCodeSheetState extends State<AccessCodeSheet> {
                       labelText: 'Access code',
                       hintText: '1234 5678',
                       border: OutlineInputBorder()),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _texting || _busy ? null : _textMeACode,
+                  child: Text(_texting
+                      ? 'Sending…'
+                      : _notice != null
+                          ? 'Text me a new code'
+                          : 'Text me a code'),
                 ),
               ),
               _passwordField(_next, 'New password'),

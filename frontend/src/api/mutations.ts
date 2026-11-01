@@ -142,6 +142,8 @@ export interface IssuedAccessCode {
   expires_at: string
   /** The phone (or email) the member types with the code. */
   sign_in_with: string
+  /** The phone it was also texted to, or "" when SMS is off or it failed. */
+  texted_to: string
   detail: string
 }
 

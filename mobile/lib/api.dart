@@ -245,11 +245,10 @@ class Api {
     return user;
   }
 
-  /// Email a password-reset link, asked for by phone or email. The answer is
-  /// the same whether or not the account exists, so it cannot be used to find
-  /// out who is a member. Someone with no email is told to ask for an access
-  /// code instead.
-  Future<String> requestPasswordReset(String username) async {
+  /// Email a password-reset link, or text a code to a phone number when the
+  /// server has SMS on. The answer is the same whether or not the account
+  /// exists, so it cannot be used to find out who is a member.
+  Future<ResetReply> requestPasswordReset(String username) async {
     http.Response res;
     try {
       res = await http.post(
@@ -272,7 +271,14 @@ class Api {
     if (res.statusCode >= 400) {
       throw ApiException(_detail(res), res.statusCode);
     }
-    return _detail(res);
+    var texted = false;
+    try {
+      final body = jsonDecode(res.body);
+      texted = body is Map && body['next'] == 'access_code';
+    } on FormatException {
+      // An old server's reply: a link was emailed, or nothing was sent.
+    }
+    return ResetReply(_detail(res), textedCode: texted);
   }
 
   /// Change the signed-in user's password. The server issues a new token —
@@ -692,6 +698,16 @@ class Api {
     _cooperativeId = null;
     await _persist();
   }
+}
+
+/// What "Forgot password" answered.
+class ResetReply {
+  ResetReply(this.detail, {this.textedCode = false});
+  final String detail;
+
+  /// A code was texted (or would have been, for a number with no account):
+  /// the code form comes next.
+  final bool textedCode;
 }
 
 class ApiException implements Exception {

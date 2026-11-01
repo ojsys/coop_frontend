@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { requestPasswordReset } from '@/api/auth'
 import { apiErrorMessage } from '@/lib/apiError'
 import { PlatformMark } from '@/ui/PlatformMark'
@@ -7,16 +7,17 @@ import { usePublicBranding } from '@/api/public'
 import { Icon } from '@/ui/Icon'
 import { Spinner } from '@/ui/Spinner'
 
-/** No email, no reset link: the society's secretary gives them a code. */
-function AccessCodeHint() {
+/** No email, no reset link: a code by text, or from the society's secretary. */
+function AccessCodeHint({ ask = false }: { ask?: boolean }) {
   return (
     <div className="mt-4 flex items-start gap-2 rounded-md border border-line bg-card px-3.5 py-3 text-sm text-ink-soft">
       <Icon name="phone_android" size={18} className="mt-0.5 shrink-0 text-muted" />
       <span>
-        Signed up with only a phone number? Ask your society's secretary for an
-        access code, then{' '}
+        {ask
+          ? "Signed up with only a phone number? Ask your society's secretary for an access code, then"
+          : 'Already have an access code from your secretary?'}{' '}
         <Link to="/access-code" className="font-medium text-green hover:underline">
-          use it here
+          {ask ? 'use it here' : 'Use it here'}
         </Link>
         .
       </span>
@@ -32,15 +33,21 @@ export function ForgotPasswordPage() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const navigate = useNavigate()
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setBusy(true)
     try {
-      await requestPasswordReset(username)
-      // The API answers identically for unknown addresses, so this confirms
-      // the request was accepted — never that an account exists.
+      const reply = await requestPasswordReset(username)
+      // A phone number with SMS on: a code was texted, so the code form is
+      // next. The API answers identically for unknown numbers and addresses,
+      // so neither branch confirms that an account exists.
+      if (reply.next === 'access_code') {
+        navigate('/access-code', { state: { username, texted: true } })
+        return
+      }
       setSent(true)
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not send the reset link.'))
@@ -65,7 +72,7 @@ export function ForgotPasswordPage() {
               with an email address, a reset link is on its way. It expires in a
               few hours and can only be used once.
             </p>
-            <AccessCodeHint />
+            <AccessCodeHint ask />
             <p className="mt-4 text-sm text-muted">
               Nothing arrived? Check your spam folder, or{' '}
               <button
@@ -87,8 +94,8 @@ export function ForgotPasswordPage() {
           <>
             <h1 className="font-display text-2xl font-semibold text-ink">Reset your password</h1>
             <p className="mt-1 text-sm text-muted">
-              Enter the phone number or email you sign in with. If your account
-              has an email, we'll send a link to choose a new password.
+              Enter the phone number or email you sign in with. We'll text a
+              code to your phone, or email a link to choose a new password.
             </p>
             <AccessCodeHint />
 
@@ -124,7 +131,7 @@ export function ForgotPasswordPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-md bg-green px-4 py-2.5 text-sm font-semibold text-paper transition hover:bg-green-hover disabled:opacity-60"
               >
                 {busy ? <Spinner className="size-4 border-paper/40 border-t-paper" /> : null}
-                Send reset link
+                Continue
               </button>
             </form>
 

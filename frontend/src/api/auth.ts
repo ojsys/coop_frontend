@@ -25,16 +25,21 @@ export function logout() {
 /** Ask for a reset link, by phone or email. The reply is deliberately
  *  identical whether or not the account exists, so it must not be treated as
  *  confirmation. Someone with no email is told to ask for an access code. */
-export async function requestPasswordReset(username: string): Promise<string> {
-  const { data } = await api.post<{ detail: string }>(
+/** Email a reset link, or text a code to a phone number. ``next`` is
+ *  ``'access_code'`` when a code was texted (or would have been, for an
+ *  unregistered number): the code form comes next. */
+export async function requestPasswordReset(
+  username: string,
+): Promise<{ detail: string; next?: 'access_code' }> {
+  const { data } = await api.post<{ detail: string; next?: 'access_code' }>(
     '/auth/password-reset/',
     { username },
   )
-  return data.detail
+  return data
 }
 
-/** Choose a password with the one-time code an officer of the society gave
- *  a member who has no email. */
+/** Choose a password with a one-time code: one an officer of the society
+ *  gave the member, or one texted from "Forgot password". */
 export async function redeemAccessCode(input: {
   username: string
   code: string

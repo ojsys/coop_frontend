@@ -11,7 +11,8 @@ import { useToast } from '@/ui/toast'
  *
  * For people with no email, who cannot be sent a set-password or reset link.
  * The code is shown here once; the officer reads it out or writes it down,
- * and the member enters it with their phone in the app or at /access-code.
+ * and it is texted to the member too when SMS is on. The member enters it
+ * with their phone in the app or at /access-code.
  */
 export function AccessCodePanel({
   member,
@@ -74,8 +75,13 @@ function IssuedCode({ issued, name }: { issued: IssuedAccessCode; name: string }
       <div className="mt-1.5 select-all font-mono text-3xl font-semibold tracking-[0.15em] text-ink">
         {spaced}
       </div>
+      {issued.texted_to && (
+        <p className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-green">
+          <Icon name="sms" size={16} /> Texted to {phone(issued.texted_to)}
+        </p>
+      )}
       <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-        Give this to {name} now; it won't be shown again. In the app, or at{' '}
+        {issued.texted_to ? 'You can also read it out to' : 'Give this to'} {name} now; it won't be shown again. In the app, or at{' '}
         <span className="font-medium text-ink">{window.location.host}/access-code</span>,
         they enter <span className="font-medium text-ink">{phone(issued.sign_in_with)}</span>{' '}
         and this code, then choose a password.
